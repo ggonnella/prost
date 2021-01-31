@@ -1,0 +1,48 @@
+#
+# Goal: collect all complete bacterial and archaeal genomes in Refseq
+#
+
+# The FAQ in ftp://ftp.ncbi.nlm.nih.gov/genomes/ASSEMBLY_REPORTS/README_assembly_summary.txt
+# under "How can I download RefSeq data for all complete bacterial genomes?"
+# refers to https://www.ncbi.nlm.nih.gov/genome/doc/ftpfaq/#allcomplete
+
+# Under https://www.ncbi.nlm.nih.gov/genome/doc/ftpfaq/#allcomplete it is written that
+# one should download the assembly_summary.txt, then extract, using awk, the list of
+# FTP paths of interest, appending "*_genomic.gbff.gz" to it. Awk code examples are given.
+
+wget ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/bacteria/assembly_summary.txt
+awk -F "\t" '$12=="Complete Genome",$11=="latest"{print $20}' assembly_summary.txt > ftpdirpaths
+#awk 'BEGIN{FS=OFS="/";filesuffix="genomic.gbff.gz"}{ftpdir=$0;asm=$10;file=asm"_"filesuffix;print ftpdir,file}' ftpdirpaths > ftpfilepaths
+#
+# Files to download
+#
+# A desciption of the files in each directory is given in:
+# https://www.ncbi.nlm.nih.gov/genome/doc/ftpfaq#files
+#
+# Interesting files for my project
+# "*_assembly_report.txt" => scientific name of the organism and taxonomy ID
+# "*_assembly_stats.txt" => Total length
+# (maybe these can be obtained by the summary instead)
+#
+# "*_feature_count.txt.gz" => counts per feature type: gene, RNA, CDS
+# "*_genomic.fna.gz" => Fasta of the genomic sequence
+# "*_genomic.gff.gz" => GFF3 annotation of the genome
+# --> see ftp://ftp.ncbi.nlm.nih.gov/genomes/README_GFF3.txt
+#     for the conventions used by NCBI on the genomic GFF3
+# "*_protein.faa.gz" => Fasta of the annotated protein products
+# --> there is also a "*_translated_cds.faa.gz" with computationally translated
+#                     CDS features, it would be interesting to understand where
+#                     there is really a difference;
+#                     protein should contain the "accessioned" protein products
+#                     translated_cds computationally translated, so no
+#                     post-translational processing eg (probably)
+#
+# Other possibly interesting files:
+# "*_rna_from_genomic.fna.gz" -> all RNA features annotated on the assembly
+# same as before, there is also "*_rna.fna.gz" for the accessioned RNAs
+#
+# "*_feature_table.txt.gz" -> tabular feature table; not all features are
+# included; included are CDS, RNA, operon, immunoglobulin annotations
+# (C/V/N/S_region and V/D/J_segment)
+#
+# The genomes shall be downloaded in scratch
