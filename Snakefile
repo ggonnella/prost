@@ -1,4 +1,29 @@
 #!/usr/bin/env python3
+"""
+
+Task 2: update_accession_tables
+  2a: refseq
+  - extract the accession numbers -- for not yet done files; and update the tables
+  2b: genbank
+  - temporarily download also the genbank for not yet done files, to update the accession tables
+
+Task 3: update_bacdive
+  update the bacdive database
+
+Task 4: associate_complete_genomes_to_bacdive
+  4a:
+  - match the bacdive records using the accession tables
+  4b:
+  - NEW: match the genomes using the IDs
+
+Task 5: analyse_bacdive_details
+  - structure;
+  - NEW: single values
+
+Task 6: select_genomes_for_bacdive_trait
+  - collect the genomes corresponding to a value / all values of a trait
+"""
+
 from glob import glob
 import os
 import shutil
