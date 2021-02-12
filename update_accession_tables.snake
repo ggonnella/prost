@@ -4,18 +4,24 @@ import os
 import shutil
 import re
 
-DBs = ["refseq", "genbank"]
 Domains = ["bacteria", "archaea"]
-
 genomesdir=os.environ["HOME"]+"/data/prok_complete_genomes/"
 asmsummarydir=genomesdir+"asmsummary/"
+accessionsdir=genomesdir+"accessions/"
+
+rule all:
+  input:
+    expand(accessionsdir+"rsasm.{domain}.tsv", domain=Domains),
+    expand(accessionsdir+"gbasm_rsasm_gbseq.{domain}.tsv", domain=Domains),
+    expand(accessionsdir+"gbasm_rsasm.{domain}.tsv", domain=Domains),
+    expand(accessionsdir+"rsasm_rsseq.{domain}.tsv", domain=Domains)
 
 rule table_asm_accessions:
   input:
     asmsummarydir+"assembly_summary_refseq_{domain}.txt"
   output:
-    asmsummarydir+"accessions/rsasm.{domain}.tsv",
-    asmsummarydir+"accessions/gbasm_rsasm.{domain}.tsv"
+    accessionsdir+"rsasm.{domain}.tsv",
+    accessionsdir+"gbasm_rsasm.{domain}.tsv"
   run:
     r_tsv = open(output[0], "w")
     g_tsv = open(output[1], "w")
@@ -32,10 +38,10 @@ rule table_asm_accessions:
 
 rule genbank_download_paths:
   input:
-    asmsummarydir+"accessions/gbasm_rsasm.{domain}.tsv",
+    accessionsdir+"gbasm_rsasm.{domain}.tsv",
     asmsummarydir+"assembly_summary_refseq_{domain}.txt"
   output:
-    asmsummarydir+"accessions/plan/genbank_{domain}.remote_path.tsv"
+    temp(accessionsdir+"genbank_{domain}.remote_paths.tsv")
   run:
     gbasms = set()
     outfile = open(output[0], "w")
@@ -62,9 +68,9 @@ rule genbank_download_paths:
 
 rule cp_existing_genbank_seqacc:
   params:
-    possible_input=asmsummarydir+"accessions/gbasm_rsasm_gbseq.{domain}.tsv"
+    possible_input=accessionsdir+"gbasm_rsasm_gbseq.{domain}.tsv"
   output:
-    asmsummarydir+"accessions/plan/gbasm_rsasm_gbseq.{domain}.tsv"
+    temp(accessionsdir+"gbasm_rsasm_gbseq.{domain}.prev")
   shell:
     """
     if [ -e {params.possible_input} ]; then
@@ -76,10 +82,10 @@ rule cp_existing_genbank_seqacc:
 
 rule list_needed_genbank_seqacc:
   input:
-    asmsummarydir+"accessions/plan/genbank_{domain}.remote_path.tsv",
-    asmsummarydir+"accessions/plan/gbasm_rsasm_gbseq.{domain}.tsv"
+    accessionsdir+"genbank_{domain}.remote_paths.tsv",
+    accessionsdir+"gbasm_rsasm_gbseq.{domain}.prev"
   output:
-    asmsummarydir+"accessions/plan/genbank_{domain}.need_seqacc"
+    temp(accessionsdir+"genbank_{domain}.need_seqacc")
   run:
     not_needed = set()
     with open(input[1]) as f:
@@ -96,10 +102,10 @@ rule list_needed_genbank_seqacc:
 
 rule update_gbseq_list:
   input:
-    asmsummarydir+"accessions/plan/genbank_{domain}.need_seqacc",
-    asmsummarydir+"accessions/plan/gbasm_rsasm_gbseq.{domain}.tsv"
+    accessionsdir+"genbank_{domain}.need_seqacc",
+    accessionsdir+"gbasm_rsasm_gbseq.{domain}.prev"
   output:
-    asmsummarydir+"accessions/gbasm_rsasm_gbseq.{domain}.tsv"
+    accessionsdir+"gbasm_rsasm_gbseq.{domain}.tsv"
   run:
     outfile = open(output[0], "w")
     with open(input[0]) as f:
@@ -125,9 +131,9 @@ rule update_gbseq_list:
 
 rule cp_existing_refseq_seqacc:
   params:
-    possible_input=asmsummarydir+"accessions/rsasm_rsseq.{domain}.tsv"
+    possible_input=accessionsdir+"rsasm_rsseq.{domain}.tsv"
   output:
-    asmsummarydir+"accessions/plan/rsasm_rsseq.{domain}.tsv"
+    temp(accessionsdir+"rsasm_rsseq.{domain}.prev")
   shell:
     """
     if [ -e {params.possible_input} ]; then
@@ -139,9 +145,9 @@ rule cp_existing_refseq_seqacc:
 
 rule list_needed_refseq_seqacc:
   input:
-    asmsummarydir+"accessions/plan/rsasm_rsseq.{domain}.tsv"
+    accessionsdir+"rsasm_rsseq.{domain}.prev"
   output:
-    asmsummarydir+"accessions/plan/refseq_{domain}.need_seqacc"
+    temp(accessionsdir+"refseq_{domain}.need_seqacc")
   run:
     not_needed = set()
     with open(input[0]) as f:
@@ -158,10 +164,10 @@ rule list_needed_refseq_seqacc:
 
 rule update_rsseq_list:
   input:
-    asmsummarydir+"accessions/plan/refseq_{domain}.need_seqacc",
-    asmsummarydir+"accessions/plan/rsasm_rsseq.{domain}.tsv"
+    accessionsdir+"refseq_{domain}.need_seqacc",
+    accessionsdir+"rsasm_rsseq.{domain}.prev"
   output:
-    asmsummarydir+"accessions/rsasm_rsseq.{domain}.tsv"
+    accessionsdir+"rsasm_rsseq.{domain}.tsv"
   run:
     outfile = open(output[0], "w")
     with open(input[0]) as f:

@@ -13,7 +13,7 @@ asmsummarydir=genomesdir+"asmsummary/"
 rule all:
   input:
     asmsummarydir+"/assembly.updated",
-    expand(asmsummarydir+"plan/complete_genomes_refseq_{domain}.{unit}.done",
+    expand(asmsummarydir+"complete_genomes_refseq_{domain}.{unit}.done",
         domain=Domains,unit=["new", "obsolete"])
 
 checkpoint prepare:
@@ -46,8 +46,8 @@ rule create_updating_plan:
   input:
     asmsummarydir+"complete_genomes_refseq_{domain}.txt"
   output:
-    new=temp(asmsummarydir+"plan/complete_genomes_refseq_{domain}.new"),
-    obs=temp(asmsummarydir+"plan/complete_genomes_refseq_{domain}.obsolete"),
+    new=temp(asmsummarydir+"complete_genomes_refseq_{domain}.new"),
+    obs=temp(asmsummarydir+"complete_genomes_refseq_{domain}.obsolete"),
     rep=report("updating_plan.report_{domain}.tsv")
   params:
     chunkspfx=genomesdir+"seq/{domain}/chunk."
@@ -78,9 +78,9 @@ rule create_updating_plan:
 
 rule move_obsolete_genomes:
   input:
-    asmsummarydir+"plan/complete_genomes_refseq_{domain}.obsolete"
+    asmsummarydir+"complete_genomes_refseq_{domain}.obsolete"
   output:
-    temp(touch(asmsummarydir+"plan/complete_genomes_refseq_{domain}.obsolete.done"))
+    temp(touch(asmsummarydir+"complete_genomes_refseq_{domain}.obsolete.done"))
   params:
     chunkspfx=genomesdir+"seq/{domain}/chunk.",
     obsmaindir=genomesdir+"seq/{domain}/obsolete",
@@ -98,9 +98,9 @@ rule move_obsolete_genomes:
 
 rule download_new_genomes:
   input:
-    asmsummarydir+"plan/complete_genomes_refseq_{domain}.new"
+    asmsummarydir+"complete_genomes_refseq_{domain}.new"
   output:
-    temp(touch(asmsummarydir+"plan/complete_genomes_refseq_{domain}.new.done"))
+    temp(touch(asmsummarydir+"complete_genomes_refseq_{domain}.new.done"))
   params:
     chunkspfx=genomesdir+"seq/{domain}/chunk.",
     chunkmaxsize=500
