@@ -1,0 +1,130 @@
+#/usr/bin/env python3
+from glob import glob
+import os
+import shutil
+import re
+
+DBs = ["refseq", "genbank"]
+Domains = ["bacteria", "archaea"]
+
+genomesdir=os.environ["HOME"]+"/data/prok_complete_genomes/"
+asmsummarydir=genomesdir+"asmsummary/"
+
+rule all:
+  input:
+    asmsummarydir+"/assembly.updated",
+    expand(asmsummarydir+"plan/complete_genomes_refseq_{domain}.{unit}.done",
+        domain=Domains,unit=["new", "obsolete"])
+
+checkpoint prepare:
+  output:
+    temp(touch(asmsummarydir+"/assembly.updated"))
+  run:
+    for db in DBs:
+      for domain in Domains:
+        output=asmsummarydir+f"assembly_summary_{db}_{domain}.txt"
+        remote=f"ftp://ftp.ncbi.nlm.nih.gov/genomes/{db}/{domain}/assembly_summary.txt"
+        shell(f"curl -o {output} -z {output} {remote}")
+
+rule list_complete_genomes_for_domain:
+  input:
+    asmsummarydir+"assembly_summary_{db}_{domain}.txt"
+  output:
+    asmsummarydir+"complete_genomes_{db}_{domain}.txt"
+  run:
+    o_f = open(output[0], "w")
+    with open(input[0]) as f:
+      for line in f:
+        if line[0] != "#":
+          elems = line.rstrip().split("\t")
+          if elems[10] == "latest" and elems[11] == "Complete Genome":
+            # asmacc ftppath
+            o_f.write("\t".join([elems[0], elems[19]])+"\n")
+    o_f.close()
+
+rule create_updating_plan:
+  input:
+    asmsummarydir+"complete_genomes_refseq_{domain}.txt"
+  output:
+    new=temp(asmsummarydir+"plan/complete_genomes_refseq_{domain}.new"),
+    obs=temp(asmsummarydir+"plan/complete_genomes_refseq_{domain}.obsolete"),
+    rep=report("updating_plan.report_{domain}.tsv")
+  params:
+    chunkspfx=genomesdir+"seq/{domain}/chunk."
+  run:
+    filenames=set(os.path.basename(fn) for fn in \
+        glob(params.chunkspfx+"*/*_genomic.fna.gz"))
+    out_new = open(output.new, "w")
+    out_obs = open(output.obs, "w")
+    n_new = 0
+    n_obs = 0
+    with open(input[0]) as f:
+      for line in f:
+        elems = line.rstrip().split("\t")
+        fn = elems[1].split("/")[-1] + "_genomic.fna.gz"
+        if fn in filenames:
+          filenames.remove(fn)
+        else:
+          out_new.write(fn+"\t"+elems[1]+"\n")
+          n_new += 1
+      for fn in filenames:
+        out_obs.write(fn+"\n")
+        n_obs += 1
+    out_new.close()
+    out_obs.close()
+    with open(output.rep, "w") as f:
+      f.write(f"n_new\t{n_new}\n")
+      f.write(f"n_obsolete\t{n_obs}\n")
+
+rule move_obsolete_genomes:
+  input:
+    asmsummarydir+"plan/complete_genomes_refseq_{domain}.obsolete"
+  output:
+    temp(touch(asmsummarydir+"plan/complete_genomes_refseq_{domain}.obsolete.done"))
+  params:
+    chunkspfx=genomesdir+"seq/{domain}/chunk.",
+    obsmaindir=genomesdir+"seq/{domain}/obsolete",
+    obsoletepfx=genomesdir+"seq/{domain}/obsolete/chunk."
+  run:
+    with open(input[0]) as f:
+      for line in f:
+        fn = line.rstrip()
+        srcfile = glob(params.chunkspfx+"*/"+fn)[0]
+        chunknum = os.path.dirname(srcfile).split("/")[-1].split(".")[1]
+        obsdir = params.obsoletepfx+chunknum
+        if not os.path.exists(params.obsmaindir): os.mkdir(params.obsmaindir)
+        if not os.path.exists(obsdir): os.mkdir(obsdir)
+        shutil.move(srcfile, obsdir)
+
+rule download_new_genomes:
+  input:
+    asmsummarydir+"plan/complete_genomes_refseq_{domain}.new"
+  output:
+    temp(touch(asmsummarydir+"plan/complete_genomes_refseq_{domain}.new.done"))
+  params:
+    chunkspfx=genomesdir+"seq/{domain}/chunk.",
+    chunkmaxsize=500
+  run:
+    if os.stat(input[0]).st_size > 0:
+      chunknums = \
+        [int(os.path.splitext(x)[1][1:]) for x in glob(params.chunkspfx+"*")]
+      if len(chunknums) == 0:
+        chunknum = 0
+        genomenum = 0
+      else:
+        chunknum = max(chunknums)
+        genomenum = \
+          len(glob(params.chunkspfx+str(chunknum)+"/*_genomic.fna.gz")) + 1
+      chunkdir=params.chunkspfx+str(chunknum)
+      if not os.path.exists(chunkdir): os.mkdir(chunkdir)
+      with open(input[0]) as f:
+        for line in f:
+          elems = line.rstrip().split("\t")
+          if genomenum == params.chunkmaxsize:
+            genomenum = 0
+            chunknum += 1
+            chunkdir = params.chunkspfx+str(chunknum)
+            os.mkdir(chunkdir)
+          genomenum+=1
+          shell("wget "+elems[1]+"/"+elems[0]+" -O "+chunkdir+"/"+elems[0])
+

@@ -1,12 +1,5 @@
-#!/usr/bin/env python3
+#/usr/bin/env python3
 """
-
-Task 2: update_accession_tables
-  2a: refseq
-  - extract the accession numbers -- for not yet done files; and update the tables
-  2b: genbank
-  - temporarily download also the genbank for not yet done files, to update the accession tables
-
 Task 3: update_bacdive
   update the bacdive database
 
@@ -163,24 +156,31 @@ rule table_asm_accessions:
 rule genbank_download_paths:
   input:
     asmsummarydir+"accessions/gbasm_rsasm.{domain}.tsv",
-    asmsummarydir+"assembly_summary_genbank_{domain}.txt"
+    asmsummarydir+"assembly_summary_refseq_{domain}.txt"
   output:
     asmsummarydir+"accessions/plan/genbank_{domain}.remote_path.tsv"
   run:
-    gbasm = dict()
+    gbasms = set()
     outfile = open(output[0], "w")
     with open(input[0]) as f:
       for line in f:
         elems = line.rstrip().split("\t")
-        gbasm[elems[0]] = elems[1]
+        gbasms.add(elems[0])
     with open(input[1]) as f:
       for line in f:
         if line[0] != "#":
           elems = line.rstrip().split("\t")
-          if elems[0] in gbasm:
-            rsasm = gbasm[elems[0]]
-            del gbasm[elems[0]]
-            outfile.write("\t".join([rsasm, elems[0], elems[19]])+"\n")
+          if elems[17] in gbasms:
+            rsasm = elems[0]
+            rspath = elems[19]
+            gbasm = elems[17]
+            rsdirparts = rspath.split("/")[-1].split("_")
+            gbdir = gbasm + "_" + "_".join(rsdirparts[2:])
+            gbpath = "/".join(["ftp://ftp.ncbi.nlm.nih.gov",
+                     "genomes", "all", "GCA", gbasm[4:7], gbasm[7:10],
+                      gbasm[10:13], gbdir])
+            outfile.write("\t".join([rsasm, gbasm, gbpath])+"\n")
+            gbasms.remove(gbasm)
     outfile.close()
 
 rule cp_existing_genbank_seqacc:
@@ -240,6 +240,65 @@ rule update_gbseq_list:
         outfile.write("\t".join([elems[1], elems[0], ",".join(seqaccs)])+"\n")
         outfile.flush()
         os.remove(fn)
+        os.remove(accfn)
+    with open(input[1]) as f:
+      for line in f:
+        outfile.write(line)
+    outfile.close()
+
+rule cp_existing_refseq_seqacc:
+  params:
+    possible_input=asmsummarydir+"accessions/rsasm_rsseq.{domain}.tsv"
+  output:
+    asmsummarydir+"accessions/plan/rsasm_rsseq.{domain}.tsv"
+  shell:
+    """
+    if [ -e {params.possible_input} ]; then
+      cp {params.possible_input} {output}
+    else
+      touch {output}
+    fi
+    """
+
+rule list_needed_refseq_seqacc:
+  input:
+    asmsummarydir+"accessions/plan/rsasm_rsseq.{domain}.tsv"
+  output:
+    asmsummarydir+"accessions/plan/refseq_{domain}.need_seqacc"
+  run:
+    not_needed = set()
+    with open(input[0]) as f:
+      for line in f:
+        elems = line.rstrip().split("\t")
+        not_needed.add(elems[0])
+    outfile = open(output[0], "w")
+    files = glob(genomesdir+f"seq/{wildcards.domain}/chunk.*/*_genomic.fna.gz")
+    for fn in files:
+      asmacc = "_".join(os.path.basename(fn).split("_")[:2])
+      if asmacc not in not_needed:
+        outfile.write(f"{asmacc}\t{fn}\n")
+    outfile.close()
+
+rule update_rsseq_list:
+  input:
+    asmsummarydir+"accessions/plan/refseq_{domain}.need_seqacc",
+    asmsummarydir+"accessions/plan/rsasm_rsseq.{domain}.tsv"
+  output:
+    asmsummarydir+"accessions/rsasm_rsseq.{domain}.tsv"
+  run:
+    outfile = open(output[0], "w")
+    with open(input[0]) as f:
+      for line in f:
+        elems = line.rstrip().split("\t")
+        accfn = elems[0] + ".acc"
+        fn = elems[1]
+        shell(f"zcat {fn} | grep -P '^>' | cut -f1 -d' ' | cut -c2- > {accfn}")
+        seqaccs = []
+        with open(accfn) as f2:
+          for l2 in f2:
+            seqaccs.append(l2.rstrip())
+        outfile.write("\t".join([elems[0], ",".join(seqaccs)])+"\n")
+        outfile.flush()
         os.remove(accfn)
     with open(input[1]) as f:
       for line in f:
