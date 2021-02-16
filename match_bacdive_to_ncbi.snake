@@ -1,0 +1,145 @@
+#!/usr/bin/env python3
+
+import os
+
+bacdivedir=os.environ["HOME"]+"/data/bacdive/"
+accdir=os.environ["HOME"]+"/data/prok_complete_genomes/accessions/"
+
+rule all:
+  input:
+    bacdivedir+"bdid_rsasm.tsv",
+    bacdivedir+"bacdive.w_complete_g.details",
+    bacdivedir+"bacdive.w_complete_g.details.info",
+    bacdivedir+"bacdive.w_complete_g.paths_freq",
+    bacdivedir+"bacdive.w_complete_g.leaves_freq"
+
+rule summarize_json_records:
+  input:
+    bacdivedir+"{pfx}.details"
+  output:
+    bacdivedir+"{pfx}.details.info"
+  shell:
+    """
+    scripts/summarize_json_records.py {input} 4 > {output}
+    """
+
+rule extract_bacdive_accessions:
+  input:
+    bacdivedir+"bacdive.details"
+  output:
+    bacdivedir+"bacdive.accessions.tsv"
+  shell:
+    """
+    scripts/extract_bacdive_accessions.py {input[0]} > {output[0]}
+    """
+
+rule extract_bacdive_with_complete_genome:
+  input:
+    a=bacdivedir+"bdid_rsasm.tsv",
+    d=bacdivedir+"bacdive.details"
+  output:
+    a=temp(bacdivedir+"bdid_rsasm.sorted_by_id.tsv"),
+    d=temp(bacdivedir+"bacdive.sorted_by_id.details"),
+    r=bacdivedir+"bacdive.w_complete_g.details"
+  shell:
+    """
+    sort -t$'\\t' -k1b,1 {input.d} > {output.d}
+    sort -t$'\\t' -k1b,1 {input.a} > {output.a}
+    join -t$'\\t' {output.d} {output.a} -j 1 > {output.r}
+    """
+
+rule show_structure:
+  input:
+    bacdivedir+"bacdive.w_complete_g.details"
+  output:
+    bacdivedir+"bacdive.w_complete_g.structure"
+  shell:
+    """
+    scripts/bacdive_show_structure.py {input} > {output}
+    """
+
+rule summary_paths:
+  input:
+    bacdivedir+"bacdive.w_complete_g.structure"
+  output:
+    bacdivedir+"bacdive.w_complete_g.paths_freq"
+  shell:
+    """
+    cut -d$'\\t' -f 1 {input} | sort | uniq -c \
+        | sort -n -r > {output}
+    """
+
+rule summary_leaves:
+  input:
+    bacdivedir+"bacdive.w_complete_g.structure"
+  output:
+    bacdivedir+"bacdive.w_complete_g.leaves_freq"
+  shell:
+    """
+    cut -d$'\\t' -f 2 {input} | sort | uniq -c \
+        | sort -n -r > {output}
+    """
+
+Domains = ["archaea", "bacteria"]
+
+rule match_bacdive_accessions:
+  input:
+    expand(bacdivedir+"bdid_rsasm.by_gbasm.{d}.tsv", d=Domains),
+    expand(bacdivedir+"bdid_rsasm.by_rsasm.{d}.tsv", d=Domains),
+    expand(bacdivedir+"bdid_rsasm.by_gbseq.{d}.tsv", d=Domains),
+    expand(bacdivedir+"bdid_rsasm.by_rsseq.{d}.tsv", d=Domains)
+  output:
+    bacdivedir+"bdid_rsasm.tsv"
+  shell:
+    """
+    cat {input} | sort -n --unique > {output}
+    """
+
+rule match_bacdive_ids_with_gbasm_accessions:
+  input:
+    b=bacdivedir+"bacdive.accessions.tsv",
+    a=accdir+"gbasm_rsasm.{domain}.tsv"
+  output:
+    temp(bacdivedir+"bdid_rsasm.by_gbasm.{domain}.tsv")
+  shell:
+    """
+    scripts/match_accessions.py {input.b} 1 2 \
+                                {input.a} 1 2 --strip > {output}
+    """
+
+rule match_bacdive_ids_with_rsasm_accessions:
+  input:
+    b=bacdivedir+"bacdive.accessions.tsv",
+    a=accdir+"rsasm.{domain}.tsv"
+  output:
+    temp(bacdivedir+"bdid_rsasm.by_rsasm.{domain}.tsv")
+  shell:
+    """
+    scripts/match_accessions.py {input.b} 1 2 \
+                                {input.a} 1 1 --strip > {output}
+    """
+
+rule match_bacdive_ids_with_gbseq_accessions:
+  input:
+    b=bacdivedir+"bacdive.accessions.tsv",
+    a=accdir+"gbasm_rsasm_gbseq.{domain}.tsv"
+  output:
+    temp(bacdivedir+"bdid_rsasm.by_gbseq.{domain}.tsv")
+  shell:
+    """
+    scripts/match_accessions.py {input.b} 1 2 \
+                    {input.a} 3 2 --strip --multi > {output}
+    """
+
+rule match_bacdive_ids_with_rsseq_accessions:
+  input:
+    b=bacdivedir+"bacdive.accessions.tsv",
+    a=accdir+"rsasm_rsseq.{domain}.tsv"
+  output:
+    temp(bacdivedir+"bdid_rsasm.by_rsseq.{domain}.tsv")
+  shell:
+    """
+    scripts/match_accessions.py {input.b} 1 2 \
+                    {input.a} 2 1 --strip --multi > {output}
+    """
+

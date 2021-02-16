@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+"""
+Task 3: update_bacdive
+  update the bacdive database
+
+Task 4: associate_complete_genomes_to_bacdive
+  4a:
+  - match the bacdive records using the accession tables
+  4b:
+  - NEW: match the genomes using the IDs
+
+Task 5: analyse_bacdive_details
+  - structure;
+  - NEW: single values
+
+Task 6: select_genomes_for_bacdive_trait
+  - collect the genomes corresponding to a value / all values of a trait
+"""
+
+import os
+configfile: "config.yaml"
+
+bacdivedir=os.environ["HOME"]+"/data/bacdive/"
+
+rule all:
+  input:
+    bacdivedir+"bacdive.details"
+
+rule update_id_list:
+  input:
+    bacdivedir + "bacdive.ids_copy",
+    bacdivedir + "bacdive.last_processed_idslist_page_copy"
+  output:
+    bacdivedir + "bacdive.ids",
+    bacdivedir + "bacdive.last_processed_idslist_page"
+  params:
+    u=config["bacdive"]["user"],
+    p=config["bacdive"]["pass"]
+  shell:
+    """
+    done=$(cat {input[1]})
+    echo scripts/download_id_list.py --done $done {params.u} {params.p} {input[0]}
+    scripts/download_id_list.py --done $done {params.u} {params.p} {input[0]} > {output[1]}
+    cp {input[0]} {output[0]}
+    """
+
+rule prepare_id_list_update:
+  params:
+    possible_input0=bacdivedir+"bacdive.ids",
+    possible_input1=bacdivedir+"bacdive.last_processed_idslist_page"
+  output:
+    temp(bacdivedir + "bacdive.ids_copy"),
+    temp(bacdivedir + "bacdive.last_processed_idslist_page_copy")
+  shell:
+    """
+    if [ -e {params.possible_input0} ]; then
+      cp {params.possible_input0} {output[0]}
+    else
+      touch {output[0]}
+    fi
+    if [ -e {params.possible_input1} ]; then
+      cp {params.possible_input1} {output[1]}
+    else
+      echo "0" >> {output[1]}
+    fi
+    """
+
+rule download_strain_info:
+  input:
+    bacdivedir+"bacdive.ids",
+    bacdivedir+"bacdive.details_moved"
+  output:
+    bacdivedir+"bacdive.details"
+  params:
+    u=config["bacdive"]["user"],
+    p=config["bacdive"]["pass"],
+    t=bacdivedir+"bacdive.details_new"
+  shell:
+    """
+    scripts/download_strain_info.py --previous {input[1]} {params.u} {params.p} {input[0]} > {params.t}
+    cat {params.t} >> {input[1]}
+    rm {params.t}
+    mv {input[1]} {output[0]}
+    """
+
+rule prepare_strain_info_download:
+  params:
+    possible_input0=bacdivedir+"bacdive.details"
+  output:
+    bacdivedir+"bacdive.details_moved"
+  shell:
+    """
+    if [ -e {params.possible_input0} ]; then
+      mv {params.possible_input0} {output[0]}
+    else
+      touch {output[0]}
+    fi
+    """
