@@ -10,7 +10,7 @@ Columns in the output TSV:
   (4) JSON data downloaded
 
 Usage:
-  download_strain_info.py [options] <username> <password> <idlist>
+  bacdive_download_strain_info.py [options] <username> <password> <idlist>
 
 Arguments:
   username       username on bacdive

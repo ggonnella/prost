@@ -76,7 +76,7 @@ rule download_strain_info:
     t=bacdivedir+"bacdive.details_new"
   shell:
     """
-    scripts/download_strain_info.py --previous {input[1]} {params.u} {params.p} {input[0]} > {params.t}
+    scripts/bacdive_download_strain_info.py --previous {input[1]} {params.u} {params.p} {input[0]} > {params.t}
     cat {params.t} >> {input[1]}
     rm {params.t}
     mv {input[1]} {output[0]}
