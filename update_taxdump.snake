@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+
+import os
+
+taxdir=os.environ["HOME"]+"/data/ncbi_taxonomy/"
+
+# The following mechanism is used to allow updating a file, if necessary:
+#
+# update_taxdump is called, because all requires "taxdump.updated";
+# it requires the output of "prepare_update", where the taxdump file is renamed
+# (prepending current_) or an empty file is created; if "current_" is empty
+# update_taxdump just downloads the file, otherwise it checks the timestamp
+# (curl -z) and downloads only if newer.
+#
+# since update_taxdump is a checkpoint, after it is run, the DAG is recomputed.
+# "nodes.dmp" is still required by all, which is done, by if there is now a new
+# taxdump file; otherwise the old one is kept.
+#
+# just requiring nodes.dmp would not work, since the file already exists
+# therefore there is a flag file (taxdump.updated) which is temporary and
+# deleted after all is run; this forces re-runnig update_taxdump every time
+#
+# it would not work to use the same file as input and output, because, without
+# force flag or a flag file, nothing would be done (as the file already exists)
+# and with a force flag or a flag file, the output would be removed before
+# running the rule, thus re-downloaded every time.
+
+rule all:
+  input:
+    taxdir+"taxdump.updated",
+    taxdir+"nodes.dmp"
+
+checkpoint update_taxdump:
+  input:
+    taxdir+"current_taxdump.tar.gz"
+  output:
+    temp(touch(taxdir+"taxdump.updated")),
+    taxdir+"taxdump.tar.gz"
+  params:
+    remote="ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
+  shell:
+    """
+    if [ -s {input} ]; then
+      curl -o {output[1]} -z {input} {params.remote}
+    else
+      rm {input}
+      curl -o {output[1]} {params.remote}
+    fi
+    if [ ! -e {output[1]} ]; then
+      mv {input} {output[1]}
+    fi
+    """
+
+rule prepare_update:
+  params:
+    possible_input=taxdir+"taxdump.tar.gz"
+  output:
+    taxdir+"current_taxdump.tar.gz"
+  shell:
+    """
+    if [ -e {params.possible_input} ]; then
+      mv {params.possible_input} {output}
+    else
+      touch {output}
+    fi
+    """
+
+rule decompress_taxdump:
+  input:
+    ar=taxdir+"taxdump.tar.gz"
+  output:
+    taxdir+"citations.dmp",
+    taxdir+"delnodes.dmp",
+    taxdir+"division.dmp",
+    taxdir+"gencode.dmp",
+    taxdir+"merged.dmp",
+    taxdir+"names.dmp",
+    taxdir+"nodes.dmp",
+    taxdir+"gc.prt",
+    taxdir+"readme.txt"
+  shell:
+    """
+    tar xvf {input.ar} -C {taxdir}
+    """

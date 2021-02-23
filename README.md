@@ -4,8 +4,8 @@ Automatically checks for updates (i.e. for new complete genomes)
 from NCBI and downloads them.
 
 ```
-snakemake --cores 4 -s update_genome_sequences.snake
-snakemake --cores 4 -s update_accession_tables.snake
+snakemake -j -s update_genome_sequences.snake
+snakemake -j -s update_accession_tables.snake
 ```
 
 ## Download Bacdive data
@@ -14,5 +14,17 @@ This downloads the data. It is not an automatic system to check for
 updates, since the download is very slow.
 
 ```
-snakemake --cores 4 -s download_bacdive.snake -f all
+snakemake -j -s download_bacdive.snake -f all
+```
+
+## Taxdump
+
+Taxdump is the official dump of the NCBI taxonomy database,
+(ftp://ftp.ncbi.nih.gov/pub/taxonomy). It is a tar.gz archive containing
+multiple files. At Nov.2019 the compressed size was 49 Mb, uncompressed 344 Mb.
+For more information (what is in each file) see
+ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump_readme.txt
+
+```
+snakemake -j -s update_taxdump.snake
 ```

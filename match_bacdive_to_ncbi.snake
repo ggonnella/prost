@@ -55,7 +55,7 @@ rule show_structure:
     bacdivedir+"bacdive.w_complete_g.structure"
   shell:
     """
-    scripts/bacdive_show_structure.py {input} > {output}
+    scripts/json_tree_leaves.py {input} 4 1 > {output}
     """
 
 rule summary_paths:
