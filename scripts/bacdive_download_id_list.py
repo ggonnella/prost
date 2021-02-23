@@ -9,7 +9,7 @@ which is the first page from which to start downloading
 and process only pages after it.
 
 Usage:
-  download_id_list.py [options] <username> <password> <idlist>
+  bacdive_download_id_list.py [options] <username> <password> <idlist>
 
 Arguments:
   username        username on bacdive

@@ -39,8 +39,7 @@ rule update_id_list:
   shell:
     """
     done=$(cat {input[1]})
-    echo scripts/download_id_list.py --done $done {params.u} {params.p} {input[0]}
-    scripts/download_id_list.py --done $done {params.u} {params.p} {input[0]} > {output[1]}
+    scripts/bacdive_download_id_list.py --done $done {params.u} {params.p} {input[0]} > {output[1]}
     cp {input[0]} {output[0]}
     """
 
