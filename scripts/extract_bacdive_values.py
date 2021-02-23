@@ -38,8 +38,7 @@ def traverse(j, bacdive_id, pfx, last, key, split):
         print(jelem + "\t" + bacdive_id)
 
 def main(arguments):
-  with open(arguments["<tsv>"]) as f:
-    for line in f:
+  for line in arguments["<tsv>"]:
       elems = line.rstrip().split("\t")
       bacdive_id = elems[0]
       details = json.loads(elems[3])

@@ -30,7 +30,17 @@ rule extract_bacdive_accessions:
     bacdivedir+"bacdive.accessions.tsv"
   shell:
     """
-    scripts/extract_bacdive_values.py {input[0]} seq_acc_num > {output[0]}
+    scripts/extract_bacdive_values.py {input} seq_acc_num > {output}
+    """
+
+rule extract_bacdive_strainnumbers:
+  input:
+    bacdivedir+"bacdive.details"
+  output:
+    bacdivedir+"bacdive.strain_numbers.tsv"
+  shell:
+    """
+    scripts/extract_bacdive_values.py {input} strain_number --split , > {output}
     """
 
 rule extract_bacdive_with_complete_genome:
