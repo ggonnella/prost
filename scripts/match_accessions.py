@@ -24,6 +24,7 @@ Options:
 """
 
 from docopt import docopt
+from schema import Schema, Use, And
 import sys
 
 def strip_version_number(acc_v):
@@ -31,33 +32,39 @@ def strip_version_number(acc_v):
 
 def main(arguments):
   t1data = dict()
-  with open(arguments["<t1>"]) as f:
-    for line in f:
-      elems = line.rstrip().split("\t")
-      key = elems[int(arguments["<m1>"])-1]
+  for line in arguments["<t1>"]:
+    elems = line.rstrip().split("\t")
+    key = elems[arguments["<m1>"]]
+    if arguments["--strip"]:
+      key = strip_version_number(key)
+    value = elems[arguments["<o1>"]]
+    t1data[key]=value
+  for line in arguments["<t2>"]:
+    elems = line.rstrip().split("\t")
+    keys = elems[arguments["<m2>"]]
+    if arguments["--multi"]:
+      keys = keys.split(",")
+    else:
+      keys = [keys]
+    for key in keys:
       if arguments["--strip"]:
         key = strip_version_number(key)
-      value = elems[int(arguments["<o1>"])-1]
-      t1data[key]=value
-  with open(arguments["<t2>"]) as f:
-    for line in f:
-      elems = line.rstrip().split("\t")
-      keys = elems[int(arguments["<m2>"])-1]
-      if arguments["--multi"]:
-        keys = keys.split(",")
-      else:
-        keys = [keys]
-      for key in keys:
-        if arguments["--strip"]:
-          key = strip_version_number(key)
-        if key in t1data:
-          value1 = t1data[key]
-          value2 = elems[int(arguments["<o2>"])-1]
-          if arguments["--reverse"]:
-            print(f"{value2}\t{value1}")
-          else:
-            print(f"{value1}\t{value2}")
+      if key in t1data:
+        value1 = t1data[key]
+        value2 = elems[arguments["<o2>"]]
+        if arguments["--reverse"]:
+          print(f"{value2}\t{value1}")
+        else:
+          print(f"{value1}\t{value2}")
+
+def validated(arguments):
+  colnum = And(Use(lambda i: int(i)-1), lambda i: i>=0)
+  schema = Schema({
+    "<t1>": Use(open), "<t2>": Use(open),
+    "<m1>": colnum, "<m2>": colnum, "<o1>": colnum, "<o2>": colnum
+    }, ignore_extra_keys=True)
+  return schema.validate(arguments)
 
 if __name__ == "__main__":
   arguments = docopt(__doc__, version=0.1)
-  main(arguments)
+  main(validated(arguments))

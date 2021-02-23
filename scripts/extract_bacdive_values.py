@@ -18,6 +18,7 @@ Options:
 """
 
 from docopt import docopt
+from schema import Schema, Use, Or
 import json
 
 def traverse(j, bacdive_id, pfx, last, key, split):
@@ -45,6 +46,13 @@ def main(arguments):
       traverse(details, bacdive_id, "", "", arguments["<key>"],
           arguments["--split"])
 
+def validated(arguments):
+  schema = Schema({
+    "<tsv>": Use(open), "<key>": str,
+    "--split": Or(None, str)
+    }, ignore_extra_keys=True)
+  return schema.validate(arguments)
+
 if __name__ == "__main__":
   arguments = docopt(__doc__, version=0.1)
-  main(arguments)
+  main(validated(arguments))

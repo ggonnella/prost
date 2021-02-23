@@ -26,6 +26,7 @@ Options:
 import requests
 from requests.auth import HTTPBasicAuth
 from docopt import docopt
+from schema import Schema, Use, Or
 import sys
 import re
 
@@ -42,10 +43,10 @@ def get(url, headers, credentials, verbose):
 def compute_first_url(baseurl, arguments, headers, credentials):
   prevurl = baseurl
   url = None
-  if arguments["--done"]:
+  if arguments["--done"] is not None:
     # determine in this case the "next" to be processed
     # by reading it from the last processed one
-    donepage = int(arguments["--done"])
+    donepage = arguments["--done"]
     if donepage > 0:
       prevurl = f"{prevurl}?page={donepage}"
     json = get(prevurl, headers, credentials, arguments["--verbose"])
@@ -64,8 +65,6 @@ def compute_first_url(baseurl, arguments, headers, credentials):
 def main(arguments):
   if arguments["--verbose"]:
     sys.stderr.write("# This script updates the list of IDs from Bacdive\n")
-    sys.stderr.write("# IDs will be stored in {}\n".format(
-                        arguments["<idlist>"]))
     sys.stderr.write(f"# Username: {arguments['<username>']}\n")
     sys.stderr.write(f"# Password: {arguments['<password>']}\n")
 
@@ -75,27 +74,33 @@ def main(arguments):
   prevurl, url = compute_first_url(baseurl, arguments, headers, credentials)
 
   if url:
-    with open(arguments["<idlist>"], "a+") as f:
-      while url:
-        json = get(url, headers, credentials, arguments["--verbose"])
+    while url:
+      json = get(url, headers, credentials, arguments["--verbose"])
+      if arguments["--verbose"]:
+        sys.stderr.write("# Processing results...\n")
+      for result in json['results']:
         if arguments["--verbose"]:
-          sys.stderr.write("# Processing results...\n")
-        for result in json['results']:
-          if arguments["--verbose"]:
-            sys.stderr.write("## Result: \n"+ result['url'])
-          f.write(result['url'].split('/')[-2]+"\n")
-        prevurl = url
-        url = json['next']
-        if arguments["--verbose"]:
-          if url is None:
-            sys.stderr.write("# No next URL to process\n")
-            sys.stderr.write("# Everything processed\n")
-          else:
-            sys.stderr.write("# Next URL is: {}\n".format(url))
+          sys.stderr.write("## Result: \n"+ result['url'])
+        arguments["<idlist>"].write(result['url'].split('/')[-2]+"\n")
+      prevurl = url
+      url = json['next']
+      if arguments["--verbose"]:
+        if url is None:
+          sys.stderr.write("# No next URL to process\n")
+          sys.stderr.write("# Everything processed\n")
+        else:
+          sys.stderr.write("# Next URL is: {}\n".format(url))
   m = re.search(r"\d+", prevurl)
   print(m.group(0))
 
+def validated(arguments):
+  schema = Schema({
+    "<idlist>": Use(lambda fn: open(fn, "a+")),
+    "<username>": str, "<password>": str,
+    "--done": Or(None, int)
+    }, ignore_extra_keys=True)
+  return schema.validate(arguments)
+
 if __name__ == "__main__":
   arguments = docopt(__doc__, version="0.1")
-  arguments["--verbose"]=True
-  main(arguments)
+  main(validated(arguments))

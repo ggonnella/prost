@@ -17,6 +17,8 @@ Options:
 """
 
 from docopt import docopt
+from schema import Schema, Use, And
+from collections import Counter
 import json
 import sys
 
@@ -39,8 +41,6 @@ def json_collect_info(stdata, stinfo, key):
     if stdata not in stinfo[key]:
       stinfo[key][stdata] = 0
     stinfo[key][stdata] += 1
-
-from collections import Counter
 
 def format_key(k, maxklen):
   k = str(k)
@@ -107,14 +107,18 @@ def print_info(stinfo, level):
 
 def main(arguments):
   info = dict()
-  colnum = int(arguments["<colnum>"])-1
-  with open(arguments["<tsvfile>"]) as f:
-    for line in f:
-      elems = line.rstrip().split("\t")
-      jdata = json.loads(elems[colnum])
-      json_collect_info(jdata, info, "\\")
+  for line in arguments["<tsvfile>"]:
+    elems = line.rstrip().split("\t")
+    jdata = json.loads(elems[arguments["<colnum>"]])
+    json_collect_info(jdata, info, "\\")
   print_info(info, 0)
+
+def validated(arguments):
+  colnum = And(Use(lambda i: int(i)-1), lambda i: i>=0)
+  schema = Schema({"<tsvfile>": Use(open), "<colnum>": colnum},
+                  ignore_extra_keys=True)
+  return schema.validate(arguments)
 
 if __name__ == "__main__":
   arguments = docopt(__doc__, version="0.1")
-  main(arguments)
+  main(validated(arguments))
