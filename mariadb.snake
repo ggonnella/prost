@@ -88,6 +88,23 @@ rule create_dbuser:
                            --password={dbrootpass} --socket={socket}
     """
 
+rule root_connect:
+  input:
+    ancient(socket)
+  shell:
+    """
+    mysql --socket={input[0]} --database={dbname} \
+          -u root --password={dbrootpass}
+    """
+
+rule show_processes:
+  input:
+    ancient(socket)
+  shell:
+    """
+    mysqladmin processlist -u root --password={dbrootpass} --socket={socket}
+    """
+
 rule connect:
   input:
     ancient(socket), ancient(dbdir+"create_db_user.done")
