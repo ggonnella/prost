@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+
+dbdir="/home/gonnella/data/mariadb/"
+datadir=dbdir+"datadir/"
+socket=dbdir+"db.sock"
+sysuser="gonnella"
+dbrootpass="root"
+dbuser="prostuser"
+dbpass="prostpass"
+dbname="prostdb"
+
+#
+# Notes:
+# - in previous versions of snakemake the ancient() function did
+#   not work properly here (i.e. on files created by other rules);
+#   in this case, update snakemake (version 5.32.2 works)
+# - when updating snakemake, conda messed up with libffi; the
+#   workaround is to go to the directory lib under the active env location
+#   (see with conda info, in my case it is ~/tools/miniconda/3/lib) and do
+#   ```ln -s libffi.so.7 libffi.so.6```
+#
+
+rule initialize:
+  output:
+    directory(datadir)
+  shell:
+    """
+    mysql_install_db --user={sysuser} --datadir={datadir}
+    """
+
+checkpoint start_server:
+  input:
+    datadir
+  output:
+    socket
+  shell:
+    """
+    mysqld_safe --datadir={datadir} \
+                --socket={output} \
+                --user={sysuser} &
+    """
+
+rule set_root_password:
+  input:
+    ancient(socket), ancient(datadir)
+  output:
+    touch(dbdir+"set_root_password.done")
+  shell:
+    """
+    mysqladmin -u root --socket={socket} password {dbrootpass}
+    """
+
+rule stop_server:
+  input:
+    ancient(socket), ancient(dbdir+"set_root_password.done")
+  shell:
+    """
+    mysqladmin -u root --password={dbrootpass} \
+                       --socket={input[0]} shutdown
+    """
+
+rule create_db:
+  input:
+    ancient(socket), ancient(dbdir+"set_root_password.done")
+  output:
+    touch(dbdir+"create_db.done")
+  shell:
+    """
+    COMMANDS="CREATE DATABASE \`{dbname}\`; "
+    echo ${{COMMANDS}}
+    echo "${{COMMANDS}}" | mysql -u root \
+                           --password={dbrootpass} --socket={socket}
+    """
+
+rule create_dbuser:
+  input:
+    ancient(socket), ancient(dbdir+"create_db.done")
+  output:
+    touch(dbdir+"create_db_user.done")
+  shell:
+    """
+    COMMANDS="CREATE USER '{dbuser}' IDENTIFIED BY '{dbpass}'; "
+    COMMANDS+="GRANT USAGE ON *.* TO '{dbuser}'@localhost IDENTIFIED BY '{dbpass}'; "
+    COMMANDS+="GRANT ALL PRIVILEGES ON \`{dbname}\`.* to '{dbuser}'@localhost; "
+    COMMANDS+="FLUSH PRIVILEGES"
+    echo ${{COMMANDS}}
+    echo "${{COMMANDS}}" | mysql -u root \
+                           --password={dbrootpass} --socket={socket}
+    """
+
+rule connect:
+  input:
+    ancient(socket), ancient(dbdir+"create_db_user.done")
+  shell:
+    """
+    mysql --socket={input[0]} --database={dbname} \
+          -u {dbuser} --password={dbpass}
+    """
