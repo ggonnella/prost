@@ -5,10 +5,11 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Sequence, Column, Integer, String, \
                        Index, DateTime, Text, Boolean
 from sqlalchemy.orm import relationship
+from sqlalchemy_repr import PrettyRepresentableBase
 
 # Nt = NCBI Taxonomy
 
-Base = declarative_base()
+Base = declarative_base(cls=PrettyRepresentableBase)
 
 utf8_cs_args = {'mysql_charset': 'utf8', 'mysql_collate': 'utf8_bin'}
 

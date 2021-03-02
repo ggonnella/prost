@@ -28,3 +28,9 @@ ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump_readme.txt
 ```
 snakemake -j -s update_taxdump.snake
 ```
+
+## Extract a subtree
+
+```
+snakemake -j -s update_ncbi_taxonomy_db.snake get_subtree -C root=123455
+```

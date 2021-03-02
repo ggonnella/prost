@@ -17,6 +17,8 @@ rule all:
                                                    "division", "merged",
                                                    "delnodes", "citations"]),
     expand(tablesdir+"index_{table}.done", table=["names", "nodes", "merged"])
+  output:
+    touch(tablesdir+"index_all.done")
 
 rule create_tables:
   input:
@@ -57,3 +59,14 @@ rule index_table:
         {socket} {params.table}
     """
 
+rule get_subtree:
+  input:
+    tablesdir+"index_all.done",
+    ancient(socket)
+  params:
+    root=config["root"]
+  shell:
+    """
+    scripts/ncbi_taxonomy_db_extract_subtree.py {dbuser} {dbpass} {dbname} \
+        {socket} {params.root}
+    """
