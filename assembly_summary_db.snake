@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+
+dbdir="/home/gonnella/data/mariadb/"
+datadir=dbdir+"datadir/"
+socket=dbdir+"db.sock"
+dbuser="prostuser"
+dbpass="prostpass"
+dbname="prostdb"
+tablesdir=datadir+dbname+"/"
+asmdir=os.environ["HOME"]+"/data/prok_complete_genomes/asmsummary/"
+
+rule all:
+  input:
+    expand(tablesdir+"ncbi_assembly_summary.{db}.{domain}.bulk_insert.done",
+        db=["genbank", "refseq"], domain=["bacteria", "archaea"])
+
+rule create_tables:
+  input:
+    socket, model="scripts/ncbi_assembly_summmary.py"
+  output:
+    touch(tablesdir+"ncbi_assembly_summary.create_tables.done")
+  shell:
+    """
+    scripts/db_create_tables.py {dbuser} {dbpass} {dbname} \
+        {socket} {input.model}
+    """
+
+rule bulk_insert:
+  input:
+    socket, tablesdir+"ncbi_assembly_summary.create_tables.done",
+    datasrc=asmdir+"assembly_summary_{db}_{domain}.txt"
+  output:
+    touch(tablesdir+"ncbi_assembly_summary.{db}.{domain}.bulk_insert.done")
+  shell:
+    """
+    scripts/ncbi_assembly_summary_bulk_insert.py {dbuser} {dbpass} {dbname} \
+        {socket} {input.datasrc} {wildcards.db} {wildcards.domain}
+    """

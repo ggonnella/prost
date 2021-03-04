@@ -1,3 +1,0 @@
-scripts/ncbi_assembly_summary_bulk_insert.py prostuser prostpass prostdb ~/data/mariadb/db.sock ~/data/prok_complete_genomes/asmsummary/assembly_summary_refseq_archaea.txt refseq archaea]
-etc
-in snake
