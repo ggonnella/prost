@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """
-Create the NCBI assembly summary table.
+Create all tables from a SqlAlchemy schema file.
 
 Usage:
-  ncbi_assembly_summary_init.py [options] <dbuser> <dbpass> <dbname> <dbsocket>
+  ncbi_assembly_summary_init.py [options] <dbuser> <dbpass> <dbname> <dbsocket> <file>
 
 Arguments:
   dbuser:    database user to use
   dbpass:    password of the database user
   dbname:    database name
   dbsocket:  connection socket file
+  file:      python file containing the SqlAlchemy classes
+
+Requirements:
+  the file must define a global variable Base from declarative_base() e.g.
+  Base = declarative_base(cls=PrettyRepresentableBase)
 
 Options:
   --verbose, -v    be verbose
@@ -17,10 +22,10 @@ Options:
   --help, -h       show this help message
 """
 from sqlalchemy import create_engine
-from ncbi_assembly_summary import Base
 from docopt import docopt
 from schema import Schema, And
 import os
+import importlib
 
 def main(arguments):
   connstr = "".join(["mysql+mysqldb://", arguments["<dbuser>"],
@@ -28,7 +33,10 @@ def main(arguments):
                      arguments["<dbname>"], "?unix_socket=",
                      arguments["<dbsocket>"]])
   engine = create_engine(connstr, echo=True)
-  Base.metadata.create_all(engine.engine)
+  spec = importlib.util.spec_from_file_location("models", arguments["<file>"])
+  models = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(models)
+  models.Base.metadata.create_all(engine.engine)
 
 def validated(arguments):
   schema = Schema({"<dbuser>": And(str, len),

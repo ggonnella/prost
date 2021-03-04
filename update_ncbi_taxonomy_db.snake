@@ -22,12 +22,14 @@ rule all:
 
 rule create_tables:
   input:
-    ancient(socket)
+    ancient(socket),
+    models="scripts/ncbi_taxonomy.py"
   output:
     touch(tablesdir+"create_tables.done")
   shell:
     """
-    scripts/ncbi_taxonomy_db_init.py {dbuser} {dbpass} {dbname} {socket}
+    scripts/db_create_tables.py {dbuser} {dbpass} {dbname} {socket}\
+        {input.models}
     """
 
 rule insert_bulk:
