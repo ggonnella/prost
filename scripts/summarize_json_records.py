@@ -51,6 +51,29 @@ def format_key(k, maxklen):
     k = k[:(maxklen-3)]+f"... (len:{klen})"
   return k
 
+def get_key_stats(leaves):
+  nkeys = len(leaves)
+  if "[]" in leaves:
+    nkeys -= 1
+  if "#" in leaves:
+    nkeys -= 1
+  if nkeys == 0:
+    return ""
+  sumklen = 0
+  minklen = None
+  maxklen = 0
+  for k in leaves.keys():
+    if k == "#" or k == "[]":
+      continue
+    k = str(k)
+    sumklen += len(k)
+    if minklen is None or len(k) < minklen:
+      minklen = len(k)
+    if len(k) > maxklen:
+      maxklen = len(k)
+  avgklen = sumklen / nkeys
+  return f" (keys len {minklen}..{maxklen} avg:{avgklen:.2f})"
+
 def print_info(stinfo, level):
   pfx = "  "*level
   maxklen=40
@@ -58,7 +81,6 @@ def print_info(stinfo, level):
     if k == "#":
       continue
     elif k == "[]":
-      print(f"{pfx}<list>:")
       sumlen = sum(v["__len__"])
       avglen = sumlen / len(v["__len__"])
       minlen = min(v["__len__"])
@@ -70,23 +92,23 @@ def print_info(stinfo, level):
         nminlen2 = l2.count(minlen2)
       nmaxlen = v["__len__"].count(maxlen)
       if minlen == maxlen:
-        print(f"{pfx}  <len>: {minlen} (constant)")
+        print(f"{pfx}<list> len {minlen} (constant)")
       else:
         if minlen == 0:
           if minlen2 == maxlen:
-            print(f"{pfx}  <len>: 0(n={nminlen}) or {minlen2}(n=nminlen2)")
+            print(f"{pfx}<list>: len 0(n={nminlen}) or {minlen2}(n=nminlen2)")
           else:
-            print(f"{pfx}  <len>: 0(n={nminlen}) or "+\
+            print(f"{pfx}<list> len 0(n={nminlen}) or "+\
                 f"{minlen2}(n={nminlen2}) .. {maxlen}(n={nmaxlen}) "+\
                 f"(avg: {avglen:.2f}, total:{sumlen})")
         else:
-          print(f"{pfx}  <len>: {minlen}(n={nminlen}) .. {maxlen}(n={nmaxlen}) "+\
+          print(f"{pfx}<list> len {minlen}(n={nminlen}) .. {maxlen}(n={nmaxlen}) "+\
               f"(avg: {avglen:.2f}, total:{sumlen})")
-      print(f"{pfx}  <elements>:")
       del v["__len__"]
       print_info(v, level+2)
     elif isinstance(v, dict):
-      print(f"{pfx}{format_key(k, maxklen)}: {v['#']}")
+      klenstats = get_key_stats(v)
+      print(f"{pfx}{format_key(k, maxklen)}: {v['#']}{klenstats}")
       print_info(v, level+1)
   leaves={k:v for (k, v) in stinfo.items() if isinstance(v, int)}
   if "#" in leaves:
