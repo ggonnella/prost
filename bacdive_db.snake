@@ -8,12 +8,20 @@ dbpass="prostpass"
 dbname="prostdb"
 tablesdir=datadir+dbname+"/"
 
+rule tabulize_json_data:
+  input: bacdivedir+"bacdive.details"
+  output: bacdivedir+"bacdive.details.tabulized"
+  shell:
+    """
+    scripts/json_to_tabular.py {input} 4 bd 1 bacdive_id > {output}
+    """
+
 rule generate_schema:
-  input:   bacdivedir+"bacdive.details"
+  input:   bacdivedir+"bacdive.details.tabulized"
   output: "scripts/bacdive_db.py"
   shell:
     """
-    scripts/json_to_sql_tables.py {input} 4 bd bacdive_id > {output}
+    scripts/sql_models_from_data.py {input} > {output}
     """
 
 rule create_tables:
@@ -23,4 +31,16 @@ rule create_tables:
     """
     scripts/db_create_tables.py {dbuser} {dbpass} {dbname} {socket} \
         {input.models}
+    """
+
+rule bulk_insert:
+  input:
+    socket, tablesdir+"bacdive_db.create_tables.done",
+    data=bacdivedir+"bacdive.details.tabulized"
+  output:
+    touch(tablesdir+"bacdive_db.bulk_insert.done")
+  shell:
+    """
+    scripts/bacdive_db_bulk_insert.py {dbuser} {dbpass} {dbname} {socket} \
+        {input.data}
     """
