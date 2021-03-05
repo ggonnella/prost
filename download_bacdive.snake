@@ -18,7 +18,7 @@ Task 6: select_genomes_for_bacdive_trait
 """
 
 import os
-configfile: "config/account_data_bacdive.yaml"
+configfile: "config/secret.yaml"
 
 bacdivedir=os.environ["HOME"]+"/data/bacdive/"
 
