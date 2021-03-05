@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+"""
+This file contains common variable definitions.
+"""
+
+import types
+import pathlib
+
+configfile: "config.yaml"
+
+# directory structure under the data directory
+r = pathlib.Path(config["dataroot"])
+path = types.SimpleNamespace()
+path.bacdive    = r / "bacdive"
+path.tax        = r / "ncbi_taxonomy"
+path.genomes    = r / "prok_complete_genomes"
+path.asmsummary = path.genomes / "asmsummary"
+path.accessions = path.genomes / "accessions"
+path.genomeseq  = path.genomes / "seq"
+path.db         = r / "mariadb"
+path.socket     = path.db / "db.sock"
+path.dbdata     = path.db / "datadir"
+path.tables     = path.dbdata / config["dbname"]

@@ -26,7 +26,7 @@ import MySQLdb
 import tqdm
 import sh
 from docopt import docopt
-from schema import Schema, And, Use, Or
+from schema import Schema, And, Use, Or, Optional
 import os
 
 def elems2values(arguments, elems):
@@ -95,9 +95,22 @@ def validated(arguments):
                    "<database>": Or("refseq", "genbank"),
                    "<domain>": Or("bacteria", "archaea"),
                    "--batch": And(Use(int), lambda n: n>0),
-                   str: object})
+                   Optional(str): object})
   return schema.validate(arguments)
 
-if __name__ == "__main__":
+if "snakemake" in globals():
+  arguments = {
+      "<dbuser>": snakemake.config["dbuser"],
+      "<dbpass>": snakemake.config["dbpass"],
+      "<dbname>": snakemake.config["dbname"],
+      "<dbsocket>": snakemake.input.socket,
+      "<file>": snakemake.input.datasrc,
+      "<database>": snakemake.wildcards.db,
+      "<domain>": snakemake.wildcards.domain,
+      "--update": False,
+      "--batch": 20000
+      }
+  main(arguments)
+elif __name__ == "__main__":
   arguments = docopt(__doc__, version="0.1")
   main(validated(arguments))

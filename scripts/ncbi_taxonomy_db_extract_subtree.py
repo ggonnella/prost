@@ -3,7 +3,7 @@
 Extract subtree of NCBI taxonomy under a node
 
 Usage:
-  ./ncbi_taxonomy_extract_subtree.py [options] <dbuser> <dbpass> <dbname> <dbsocket> <root>
+  ncbi_taxonomy_extract_subtree.py [options] <dbuser> <dbpass> <dbname> <dbsocket> <root>
 
 Arguments:
   dbuser:    database user to use
@@ -21,7 +21,7 @@ Options:
 from sqlalchemy import create_engine
 from dbschema.ncbi_taxonomy_db import NtNode
 from docopt import docopt
-from schema import Schema, And, Use, Or
+from schema import Schema, And, Use, Or, Optional
 import os
 from sqlalchemy.orm import sessionmaker, aliased
 
@@ -50,10 +50,18 @@ def validated(arguments):
                    "<dbpass>": And(str, len),
                    "<dbname>": And(str, len),
                    "<dbsocket>": And(str, len, os.path.exists),
-                   "<root>": Or(None, Use(int)),
-                   str: object})
+                   "<root>": Use(int),
+                   Optional(str): object})
   return schema.validate(arguments)
 
-if __name__ == "__main__":
+if "snakemake" in globals():
+  args = {
+    "<dbuser>": snakemake.config["dbuser"],
+    "<dbpass>": snakemake.config["dbpass"],
+    "<dbname>": snakemake.config["dbname"],
+    "<dbsocket>": snakemake.input.socket,
+    "<root>": snakemake.params.root}
+  main(validated(args))
+elif __name__ == "__main__":
   arguments = docopt(__doc__, version="0.1")
   main(validated(arguments))

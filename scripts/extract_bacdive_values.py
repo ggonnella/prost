@@ -4,7 +4,7 @@ Extract all values for a given key from the Bacdive strain
 information TSV produced by download_strain_info.py.
 
 Usage:
-  ./extract_bacdive_values.py [options] <tsv> <key>
+  extract_bacdive_values.py [options] <tsv> <key>
 
 Arguments:
   tsv   output of download_strain_info.py
@@ -18,7 +18,7 @@ Options:
 """
 
 from docopt import docopt
-from schema import Schema, Use, Or
+from schema import Schema, Use, Or, Optional
 import json
 
 def traverse(j, bacdive_id, pfx, last, key, split):
@@ -48,8 +48,8 @@ def main(arguments):
 def validated(arguments):
   schema = Schema({
     "<tsv>": Use(open), "<key>": str,
-    "--split": Or(None, str)
-    }, ignore_extra_keys=True)
+    "--split": Or(None, str),
+    Optional(str): object})
   return schema.validate(arguments)
 
 if __name__ == "__main__":

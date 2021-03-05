@@ -16,7 +16,7 @@ Options:
 """
 
 from docopt import docopt
-from schema import Schema, Use
+from schema import Schema, Use, Optional
 
 def perc(n_part, n_all):
   return "{:.1f}%".format((n_part / n_all) * 100)
@@ -49,7 +49,7 @@ def main(arguments):
     print("")
 
 def validated(arguments):
-  schema = Schema({"<file>": Use(open)}, ignore_extra_keys=True)
+  schema = Schema({"<file>": Use(open), Optional(str): object})
   return schema.validate(arguments)
 
 if __name__ == "__main__":

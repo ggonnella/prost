@@ -1,74 +1,60 @@
 #!/usr/bin/env python3
 
-dbdir="/home/gonnella/data/mariadb/"
-datadir=dbdir+"datadir/"
-socket=dbdir+"db.sock"
-sysuser="gonnella"
-dbrootpass="root"
-dbuser="prostuser"
-dbpass="prostpass"
-dbname="prostdb"
-tablesdir=datadir+dbname+"/"
-taxdir=os.environ["HOME"]+"/data/ncbi_taxonomy/"
+include: "common.snake"
 
 rule all:
   input:
-    expand(tablesdir+"insert_{table}.done", table=["names", "nodes", "gencode",
-                                                   "division", "merged",
-                                                   "delnodes", "citations"]),
-    expand(tablesdir+"index_{table}.done", table=["names", "nodes", "merged"])
+    path.tables/"done.index.ncbi_taxonomy"
+
+rule insert_all:
+  input:
+    expand(path.tables/"done.insert.ncbi_taxonomy.{table}",
+        table=["names", "nodes", "gencode", "division",
+               "merged", "delnodes", "citations"]),
   output:
-    touch(tablesdir+"index_all.done")
+    done=touch(path.tables/"done.insert.ncbi_taxonomy")
+
+rule index_all:
+  input:
+    rules.insert_all.output.done,
+    expand(path.tables/"done.index.ncbi_taxonomy.{table}",
+        table=["names", "nodes", "merged"])
+  output:
+    done=touch(path.tables/"done.index.ncbi_taxonomy")
 
 rule create_tables:
   input:
-    ancient(socket),
-    models="scripts/ncbi_taxonomy.py"
+    socket=ancient(path.socket),
+    schema=srcdir("scripts/ncbi_taxonomy.py")
   output:
-    touch(tablesdir+"create_tables.done")
-  shell:
-    """
-    scripts/db_create_tables.py {dbuser} {dbpass} {dbname} {socket}\
-        {input.models}
-    """
+    done=touch(path.tables/"done.create_tables.ncbi_taxonomy")
+  script: "scripts/db_create_tables.py"
 
 rule insert_bulk:
   input:
-    taxdir+"{table}.dmp",
-    tablesdir+"create_tables.done",
-    ancient(socket)
+    ancient(rules.create_tables.output.done),
+    socket=ancient(path.socket),
+    dump=path.tax/"{table}.dmp"
   params:
     table="nt_{table}"
   output:
-    touch(tablesdir+"insert_{table}.done")
-  shell:
-    """
-    scripts/ncbi_taxonomy_db_bulk_insert.py {dbuser} {dbpass} {dbname} \
-        {socket} {input[0]} {params.table}
-    """
+    done=touch(path.tables/"done.insert.ncbi_taxonomy.{table}")
+  script: "scripts/ncbi_taxonomy_db_bulk_insert.py"
 
 rule index_table:
   input:
-    tablesdir+"insert_{table}.done",
-    ancient(socket)
+    path.tables/"done.insert.ncbi_taxonomy.{table}",
+    socket=ancient(path.socket)
   params:
     table="nt_{table}"
   output:
-    touch(tablesdir+"index_{table}.done")
-  shell:
-    """
-    scripts/ncbi_taxonomy_db_create_indices.py {dbuser} {dbpass} {dbname} \
-        {socket} {params.table}
-    """
+    done=touch(path.tables/"done.index.ncbi_taxonomy.{table}")
+  script: "scripts/ncbi_taxonomy_db_create_indices.py"
 
 rule get_subtree:
   input:
-    tablesdir+"index_all.done",
-    ancient(socket)
+    rules.index_all.output.done,
+    socket=ancient(path.socket)
   params:
     root=config["root"]
-  shell:
-    """
-    scripts/ncbi_taxonomy_db_extract_subtree.py {dbuser} {dbpass} {dbname} \
-        {socket} {params.root}
-    """
+  script: "scripts/ncbi_taxonomy_db_extract_subtree.py"

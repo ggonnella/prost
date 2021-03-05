@@ -4,24 +4,23 @@ import os
 import shutil
 import re
 
+include: "common.snake"
+
 Domains = ["bacteria", "archaea"]
-genomesdir=os.environ["HOME"]+"/data/prok_complete_genomes/"
-asmsummarydir=genomesdir+"asmsummary/"
-accessionsdir=genomesdir+"accessions/"
 
 rule all:
   input:
-    expand(accessionsdir+"rsasm.{domain}.tsv", domain=Domains),
-    expand(accessionsdir+"gbasm_rsasm_gbseq.{domain}.tsv", domain=Domains),
-    expand(accessionsdir+"gbasm_rsasm.{domain}.tsv", domain=Domains),
-    expand(accessionsdir+"rsasm_rsseq.{domain}.tsv", domain=Domains)
+    expand(path.accessions/"rsasm.{domain}.tsv", domain=Domains),
+    expand(path.accessions/"gbasm_rsasm_gbseq.{domain}.tsv", domain=Domains),
+    expand(path.accessions/"gbasm_rsasm.{domain}.tsv", domain=Domains),
+    expand(path.accessions/"rsasm_rsseq.{domain}.tsv", domain=Domains)
 
 rule table_asm_accessions:
   input:
-    asmsummarydir+"assembly_summary_refseq_{domain}.txt"
+    path.asmsummary/"assembly_summary_refseq_{domain}.txt"
   output:
-    accessionsdir+"rsasm.{domain}.tsv",
-    accessionsdir+"gbasm_rsasm.{domain}.tsv"
+    path.accessions/"rsasm.{domain}.tsv",
+    path.accessions/"gbasm_rsasm.{domain}.tsv"
   run:
     r_tsv = open(output[0], "w")
     g_tsv = open(output[1], "w")
@@ -38,10 +37,10 @@ rule table_asm_accessions:
 
 rule genbank_download_paths:
   input:
-    accessionsdir+"gbasm_rsasm.{domain}.tsv",
-    asmsummarydir+"assembly_summary_refseq_{domain}.txt"
+    path.accessions/"gbasm_rsasm.{domain}.tsv",
+    path.asmsummary/"assembly_summary_refseq_{domain}.txt"
   output:
-    temp(accessionsdir+"genbank_{domain}.remote_paths.tsv")
+    temp(path.accessions/"genbank_{domain}.remote_paths.tsv")
   run:
     gbasms = set()
     outfile = open(output[0], "w")
@@ -68,9 +67,9 @@ rule genbank_download_paths:
 
 rule cp_existing_genbank_seqacc:
   params:
-    possible_input=accessionsdir+"gbasm_rsasm_gbseq.{domain}.tsv"
+    possible_input=path.accessions/"gbasm_rsasm_gbseq.{domain}.tsv"
   output:
-    temp(accessionsdir+"gbasm_rsasm_gbseq.{domain}.prev")
+    temp(path.accessions/"gbasm_rsasm_gbseq.{domain}.prev")
   shell:
     """
     if [ -e {params.possible_input} ]; then
@@ -82,10 +81,10 @@ rule cp_existing_genbank_seqacc:
 
 rule list_needed_genbank_seqacc:
   input:
-    accessionsdir+"genbank_{domain}.remote_paths.tsv",
-    accessionsdir+"gbasm_rsasm_gbseq.{domain}.prev"
+    path.accessions/"genbank_{domain}.remote_paths.tsv",
+    path.accessions/"gbasm_rsasm_gbseq.{domain}.prev"
   output:
-    temp(accessionsdir+"genbank_{domain}.need_seqacc")
+    temp(path.accessions/"genbank_{domain}.need_seqacc")
   run:
     not_needed = set()
     with open(input[1]) as f:
@@ -102,10 +101,10 @@ rule list_needed_genbank_seqacc:
 
 rule update_gbseq_list:
   input:
-    accessionsdir+"genbank_{domain}.need_seqacc",
-    accessionsdir+"gbasm_rsasm_gbseq.{domain}.prev"
+    path.accessions/"genbank_{domain}.need_seqacc",
+    path.accessions/"gbasm_rsasm_gbseq.{domain}.prev"
   output:
-    accessionsdir+"gbasm_rsasm_gbseq.{domain}.tsv"
+    path.accessions/"gbasm_rsasm_gbseq.{domain}.tsv"
   run:
     outfile = open(output[0], "w")
     with open(input[0]) as f:
@@ -131,9 +130,9 @@ rule update_gbseq_list:
 
 rule cp_existing_refseq_seqacc:
   params:
-    possible_input=accessionsdir+"rsasm_rsseq.{domain}.tsv"
+    possible_input=path.accessions/"rsasm_rsseq.{domain}.tsv"
   output:
-    temp(accessionsdir+"rsasm_rsseq.{domain}.prev")
+    temp(path.accessions/"rsasm_rsseq.{domain}.prev")
   shell:
     """
     if [ -e {params.possible_input} ]; then
@@ -145,9 +144,9 @@ rule cp_existing_refseq_seqacc:
 
 rule list_needed_refseq_seqacc:
   input:
-    accessionsdir+"rsasm_rsseq.{domain}.prev"
+    path.accessions/"rsasm_rsseq.{domain}.prev"
   output:
-    temp(accessionsdir+"refseq_{domain}.need_seqacc")
+    temp(path.accessions/"refseq_{domain}.need_seqacc")
   run:
     not_needed = set()
     with open(input[0]) as f:
@@ -155,7 +154,7 @@ rule list_needed_refseq_seqacc:
         elems = line.rstrip().split("\t")
         not_needed.add(elems[0])
     outfile = open(output[0], "w")
-    files = glob(genomesdir+f"seq/{wildcards.domain}/chunk.*/*_genomic.fna.gz")
+    files = glob(path.genomeseq/wildcards.domain/"chunk.*"/"*_genomic.fna.gz")
     for fn in files:
       asmacc = "_".join(os.path.basename(fn).split("_")[:2])
       if asmacc not in not_needed:
@@ -164,10 +163,10 @@ rule list_needed_refseq_seqacc:
 
 rule update_rsseq_list:
   input:
-    accessionsdir+"refseq_{domain}.need_seqacc",
-    accessionsdir+"rsasm_rsseq.{domain}.prev"
+    path.accessions/"refseq_{domain}.need_seqacc",
+    path.accessions/"rsasm_rsseq.{domain}.prev"
   output:
-    accessionsdir+"rsasm_rsseq.{domain}.tsv"
+    path.accessions/"rsasm_rsseq.{domain}.tsv"
   run:
     outfile = open(output[0], "w")
     with open(input[0]) as f:

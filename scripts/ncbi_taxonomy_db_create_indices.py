@@ -6,7 +6,7 @@ This was splitted from the table creation,
 in order to defer it after the bulk import.
 
 Usage:
-  ./ncbi_taxonomy_create_indices.py [options] <dbuser> <dbpass> <dbname> <dbsocket> <table>
+  ncbi_taxonomy_create_indices.py [options] <dbuser> <dbpass> <dbname> <dbsocket> <table>
 
 Arguments:
   dbuser:    database user to use
@@ -24,7 +24,7 @@ Options:
 from sqlalchemy import create_engine
 from dbschema.ncbi_taxonomy_db import tablename2class
 from docopt import docopt
-from schema import Schema, And, Use
+from schema import Schema, And, Use, Optional
 import os
 
 def main(arguments):
@@ -43,9 +43,17 @@ def validated(arguments):
                    "<table>": And(lambda n:
                      n in tablename2class,
                      Use(lambda n: tablename2class[n])),
-                   str: object})
+                   Optional(str): object})
   return schema.validate(arguments)
 
-if __name__ == "__main__":
+if "snakemake" in globals():
+  args = {
+    "<dbuser>": snakemake.config["dbuser"],
+    "<dbpass>": snakemake.config["dbpass"],
+    "<dbname>": snakemake.config["dbname"],
+    "<dbsocket>": snakemake.input.socket,
+    "<table>": snakemake.params.table}
+  main(validated(args))
+elif __name__ == "__main__":
   arguments = docopt(__doc__, version="0.1")
   main(validated(arguments))

@@ -25,7 +25,7 @@ named nodes. Names are not unique. If a node contains:
     - the scalar is the leaf content
 
 Usage:
-  ./json_tree_leaves.py [options] <tsvfile> <jsoncol> <idcol>
+  json_tree_leaves.py [options] <tsvfile> <jsoncol> <idcol>
 
 Arguments:
   tsvfile:  the input TSV file
@@ -39,7 +39,7 @@ Options:
 """
 
 from docopt import docopt
-from schema import Schema, And, Use
+from schema import Schema, And, Use, Optional
 import json
 
 def print_leaves(subtree, primarykey, pfx, last):
@@ -56,7 +56,7 @@ def print_leaves(subtree, primarykey, pfx, last):
 def validated(arguments):
   colnum = And(Use(lambda i: int(i)-1), lambda i: i>=0)
   schema = Schema({"<tsvfile>": Use(open),
-    "<jsoncol>": colnum, "<idcol>": colnum, str: object})
+    "<jsoncol>": colnum, "<idcol>": colnum, Optional(str): object})
   return schema.validate(arguments)
 
 def main(arguments):

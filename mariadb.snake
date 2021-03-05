@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
 
-dbdir="/home/gonnella/data/mariadb/"
-datadir=dbdir+"datadir/"
-socket=dbdir+"db.sock"
-sysuser="gonnella"
-dbrootpass="root"
-dbuser="prostuser"
-dbpass="prostpass"
-dbname="prostdb"
+include: "common.snake"
 
 #
 # Notes:
@@ -22,29 +15,30 @@ dbname="prostdb"
 
 rule initialize:
   output:
-    directory(datadir)
+    datadir=directory(path.dbdata)
   shell:
     """
-    mysql_install_db --user={sysuser} --datadir={datadir}
+    mysql_install_db --user={config[sysuser]} --datadir={output.datadir}
     """
 
 checkpoint start_server:
   input:
-    datadir
+    datadir=rules.initialize.output.datadir
   output:
-    socket
+    socket=path.socket
   shell:
     """
-    mysqld_safe --datadir={datadir} \
-                --socket={output} \
-                --user={sysuser} &
+    mysqld_safe --datadir={input.datadir} \
+                --socket={output.socket} \
+                --user={config[sysuser]} &
     """
 
 rule set_root_password:
   input:
-    ancient(socket), ancient(datadir)
+    socket=ancient(rules.start_server.output.socket),
+    datadir=ancient(rules.initialize.output.datadir)
   output:
-    touch(dbdir+"set_root_password.done")
+    done=touch(path.db/"done.set_root_password")
   shell:
     """
     mysqladmin -u root --socket={socket} password {dbrootpass}
@@ -52,64 +46,76 @@ rule set_root_password:
 
 rule stop_server:
   input:
-    ancient(socket), ancient(dbdir+"set_root_password.done")
+    ancient(rules.set_root_password.output.done),
+    socket=ancient(rules.start_server.output.socket)
   shell:
     """
-    mysqladmin -u root --password={dbrootpass} \
-                       --socket={input[0]} shutdown
+    mysqladmin -u root --password={config[dbrootpass]} \
+                       --socket={input.socket} shutdown
     """
 
 rule create_db:
   input:
-    ancient(socket), ancient(dbdir+"set_root_password.done")
+    ancient(rules.set_root_password.output.done),
+    socket=ancient(rules.start_server.output.socket)
   output:
-    touch(dbdir+"create_db.done")
+    done=touch(path.db/"done.create_db")
   shell:
     """
-    COMMANDS="CREATE DATABASE \`{dbname}\`; "
+    COMMANDS="CREATE DATABASE \`{config[dbname]}\`; "
     echo ${{COMMANDS}}
     echo "${{COMMANDS}}" | mysql -u root \
-                           --password={dbrootpass} --socket={socket}
+                           --password={config[dbrootpass]} \
+                           --socket={input.socket}
     """
 
 rule create_dbuser:
   input:
-    ancient(socket), ancient(dbdir+"create_db.done")
+    ancient(rules.create_db.output.done),
+    socket=ancient(rules.start_server.output.socket)
   output:
-    touch(dbdir+"create_db_user.done")
+    done=touch(path.db/"done.create_db_user")
   shell:
     """
-    COMMANDS="CREATE USER '{dbuser}' IDENTIFIED BY '{dbpass}'; "
-    COMMANDS+="GRANT USAGE ON *.* TO '{dbuser}'@localhost IDENTIFIED BY '{dbpass}'; "
-    COMMANDS+="GRANT ALL PRIVILEGES ON \`{dbname}\`.* to '{dbuser}'@localhost; "
-    COMMANDS+="FLUSH PRIVILEGES"
+    COMMANDS="CREATE USER '{config[dbuser]}' IDENTIFIED BY '{config[dbpass]}'; "
+    COMMANDS+="GRANT USAGE ON *.* TO '{config[dbuser]}'@localhost "
+    COMMANDS+="  IDENTIFIED BY '{config[dbpass]}'; "
+    COMMANDS+="GRANT ALL PRIVILEGES ON \`{config[dbname]}\`.* TO"
+    COMMANDS+="  '{config[dbuser]}'@localhost; "
+    COMMANDS+="FLUSH PRIVILEGES;"
     echo ${{COMMANDS}}
     echo "${{COMMANDS}}" | mysql -u root \
-                           --password={dbrootpass} --socket={socket}
+                           --password={config[dbrootpass]} \
+                           --socket={input.socket}
     """
 
 rule root_connect:
   input:
-    ancient(socket)
+    socket=ancient(rules.start_server.output.socket)
   shell:
     """
-    mysql --socket={input[0]} --database={dbname} \
-          -u root --password={dbrootpass}
+    mysql --socket={input.socket} --database={config[dbname]} \
+          -u root --password={config[dbrootpass]}
     """
 
 rule show_processes:
   input:
-    ancient(socket)
+    socket=ancient(rules.start_server.output.socket)
   shell:
     """
-    mysqladmin processlist -u root --password={dbrootpass} --socket={socket}
+    mysqladmin processlist -u root \
+        --password={config[dbrootpass]} \
+        --socket={input.socket}
     """
 
 rule connect:
   input:
-    ancient(socket), ancient(dbdir+"create_db_user.done")
+    ancient(rules.create_dbuser.output.done),
+    socket=ancient(rules.start_server.output.socket)
   shell:
     """
-    mysql --socket={input[0]} --database={dbname} \
-          -u {dbuser} --password={dbpass}
+    mysql --socket={input.socket} \
+          --database={config[dbname]} \
+          -u {config[dbuser]} \
+          --password={config[dbpass]}
     """

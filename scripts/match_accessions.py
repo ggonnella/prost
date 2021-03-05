@@ -24,7 +24,7 @@ Options:
 """
 
 from docopt import docopt
-from schema import Schema, Use, And
+from schema import Schema, Use, And, Optional
 import sys
 
 def strip_version_number(acc_v):
@@ -61,8 +61,8 @@ def validated(arguments):
   colnum = And(Use(lambda i: int(i)-1), lambda i: i>=0)
   schema = Schema({
     "<t1>": Use(open), "<t2>": Use(open),
-    "<m1>": colnum, "<m2>": colnum, "<o1>": colnum, "<o2>": colnum
-    }, ignore_extra_keys=True)
+    "<m1>": colnum, "<m2>": colnum, "<o1>": colnum, "<o2>": colnum,
+    Optional(str): object})
   return schema.validate(arguments)
 
 if __name__ == "__main__":

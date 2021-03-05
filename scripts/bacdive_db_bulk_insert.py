@@ -22,7 +22,7 @@ import MySQLdb
 import tqdm
 import sh
 from docopt import docopt
-from schema import Schema, And, Use, Or
+from schema import Schema, And, Use, Or, Optional
 import os
 import json
 
@@ -62,9 +62,18 @@ def validated(arguments):
                    "<dbpass>": And(str, len),
                    "<dbname>": And(str, len),
                    "<dbsocket>": And(str, len, os.path.exists),
-                   str: object})
+                   Optional(str): object})
   return schema.validate(arguments)
 
-if __name__ == "__main__":
+if "snakemake" in globals():
+  arguments = {
+      "<file>": snakemake.input.data,
+      "<dbsocket>": snakemake.input.socket,
+      "<dbname>": snakemake.config["dbname"],
+      "<dbuser>": snakemake.config["dbuser"],
+      "<dbpass>": snakemake.config["dbpass"]
+      }
+  main(validated(arguments))
+elif __name__ == "__main__":
   arguments = docopt(__doc__, version="0.1")
   main(validated(arguments))

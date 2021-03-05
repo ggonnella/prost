@@ -1,46 +1,34 @@
 #!/usr/bin/env python3
-bacdivedir="/home/gonnella/data/bacdive/"
-dbdir="/home/gonnella/data/mariadb/"
-datadir=dbdir+"datadir/"
-socket=dbdir+"db.sock"
-dbuser="prostuser"
-dbpass="prostpass"
-dbname="prostdb"
-tablesdir=datadir+dbname+"/"
+"""
+Create and update a database containing
+the information from Bacdive.
+"""
+include: "common.snake"
+
+rule all:
+  input: path.tables/"done.insert.bacdive"
 
 rule tabulize_json_data:
-  input: bacdivedir+"bacdive.details"
-  output: bacdivedir+"bacdive.details.tabulized"
-  shell:
-    """
-    scripts/json_to_tabular.py {input} 4 bd 1 bacdive_id > {output}
-    """
+  input: path.bacdive/"bacdive.details"
+  output: path.bacdive/"bacdive.details.tabdata"
+  params: colnum=4, pfx="bd", idcol="bacdive_id", idcolnum=1
+  script: "scripts/json_to_tabdata.py"
 
 rule generate_schema:
-  input:   bacdivedir+"bacdive.details.tabulized"
-  output: "scripts/bacdive_db.py"
-  shell:
-    """
-    scripts/sql_models_from_data.py {input} > {output}
-    """
+  input: rules.tabulize_json_data.output
+  output: srcdir("scripts/dbschema/bacdive_db.py")
+  script: "scripts/tabdata_to_dbschema.py"
 
 rule create_tables:
-  input: socket, models="scripts/bacdive_db.py"
-  output: touch(tablesdir+"bacdive_db.create_tables.done")
-  shell:
-    """
-    scripts/db_create_tables.py {dbuser} {dbpass} {dbname} {socket} \
-        {input.models}
-    """
+  input: socket=path.socket, schema=rules.generate_schema.output[0]
+  output: touch(path.tables/"done.create_tables.bacdive")
+  script: "scripts/db_create_tables.py"
 
-rule bulk_insert:
+rule insert:
   input:
-    socket, tablesdir+"bacdive_db.create_tables.done",
-    data=bacdivedir+"bacdive.details.tabulized"
+    rules.create_tables.output,
+    socket=ancient(path.socket),
+    data=rules.tabulize_json_data.output[0]
   output:
-    touch(tablesdir+"bacdive_db.bulk_insert.done")
-  shell:
-    """
-    scripts/bacdive_db_bulk_insert.py {dbuser} {dbpass} {dbname} {socket} \
-        {input.data}
-    """
+    touch(path.tables/"done.insert.bacdive")
+  script: "scripts/bacdive_db_bulk_insert.py"

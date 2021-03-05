@@ -1,23 +1,20 @@
 #!/usr/bin/env python3
 
-import os
-
-bacdivedir=os.environ["HOME"]+"/data/bacdive/"
-accdir=os.environ["HOME"]+"/data/prok_complete_genomes/accessions/"
+include: "common.snake"
 
 rule all:
   input:
-    bacdivedir+"bdid_rsasm.tsv",
-    bacdivedir+"bacdive.w_complete_g.details",
-    bacdivedir+"bacdive.w_complete_g.details.info",
-    bacdivedir+"bacdive.w_complete_g.paths_freq",
-    bacdivedir+"bacdive.w_complete_g.leaves_freq"
+    path.bacdive/"bdid_rsasm.tsv",
+    path.bacdive/"bacdive.w_complete_g.details",
+    path.bacdive/"bacdive.w_complete_g.details.info",
+    path.bacdive/"bacdive.w_complete_g.paths_freq",
+    path.bacdive/"bacdive.w_complete_g.leaves_freq"
 
 rule summarize_json_records:
   input:
-    bacdivedir+"{pfx}.details"
+    path.bacdive/"{pfx}.details"
   output:
-    bacdivedir+"{pfx}.details.info"
+    path.bacdive/"{pfx}.details.info"
   shell:
     """
     scripts/summarize_json_records.py {input} 4 > {output}
@@ -25,131 +22,134 @@ rule summarize_json_records:
 
 rule extract_bacdive_accessions:
   input:
-    bacdivedir+"bacdive.details"
+    details=path.bacdive/"bacdive.details"
   output:
-    bacdivedir+"bacdive.accessions.tsv"
+    accessions=path.bacdive/"bacdive.accessions.tsv"
   shell:
     """
-    scripts/extract_bacdive_values.py {input} seq_acc_num > {output}
+    scripts/extract_bacdive_values.py {input.details} seq_acc_num > \
+        {output.accessions}
     """
 
 rule extract_bacdive_strainnumbers:
   input:
-    bacdivedir+"bacdive.details"
+    path.bacdive/"bacdive.details"
   output:
-    bacdivedir+"bacdive.strain_numbers.tsv"
+    path.bacdive/"bacdive.strain_numbers.tsv"
   shell:
     """
     scripts/extract_bacdive_values.py {input} strain_number --split , > {output}
     """
 
-rule extract_bacdive_with_complete_genome:
+Domains = ["archaea", "bacteria"]
+
+rule match_bacdive_ids_with_gbasm_accessions:
   input:
-    a=bacdivedir+"bdid_rsasm.tsv",
-    d=bacdivedir+"bacdive.details"
+    bd_accessions=rules.extract_bacdive_accessions.output.accessions,
+    asm2seq=path.accessions/"gbasm_rsasm.{domain}.tsv"
   output:
-    a=temp(bacdivedir+"bdid_rsasm.sorted_by_id.tsv"),
-    d=temp(bacdivedir+"bacdive.sorted_by_id.details"),
-    r=bacdivedir+"bacdive.w_complete_g.details"
+    temp(path.bacdive/"bdid_rsasm.by_gbasm.{domain}.tsv")
   shell:
     """
-    sort -t$'\\t' -k1b,1 {input.d} > {output.d}
-    sort -t$'\\t' -k1b,1 {input.a} > {output.a}
-    join -t$'\\t' {output.d} {output.a} -j 1 > {output.r}
+    scripts/match_accessions.py {input.bd_accessions} 1 2 \
+                    {input.asm2seq} 1 2 --strip > {output}
+    """
+
+rule match_bacdive_ids_with_rsasm_accessions:
+  input:
+    bd_accessions=rules.extract_bacdive_accessions.output.accessions,
+    asm2seq=path.accessions/"rsasm.{domain}.tsv"
+  output:
+    temp(path.bacdive/"bdid_rsasm.by_rsasm.{domain}.tsv")
+  shell:
+    """
+    scripts/match_accessions.py {input.bd_accessions} 1 2 \
+                    {input.asm2seq} 1 1 --strip > {output}
+    """
+
+rule match_bacdive_ids_with_gbseq_accessions:
+  input:
+    bd_accessions=rules.extract_bacdive_accessions.output.accessions,
+    asm2seq=path.accessions/"gbasm_rsasm_gbseq.{domain}.tsv"
+  output:
+    temp(path.bacdive/"bdid_rsasm.by_gbseq.{domain}.tsv")
+  shell:
+    """
+    scripts/match_accessions.py {input.bd_accessions} 1 2 \
+                    {input.asm2seq} 3 2 --strip --multi > {output}
+    """
+
+rule match_bacdive_ids_with_rsseq_accessions:
+  input:
+    bd_accessions=rules.extract_bacdive_accessions.output.accessions,
+    asm2seq=path.accessions/"rsasm_rsseq.{domain}.tsv"
+  output:
+    temp(path.bacdive/"bdid_rsasm.by_rsseq.{domain}.tsv")
+  shell:
+    """
+    scripts/match_accessions.py {input.bd_accessions} 1 2 \
+                    {input.asm2seq} 2 1 --strip --multi > {output}
+    """
+
+rule match_bacdive_accessions:
+  input:
+    expand(path.bacdive/"bdid_rsasm.by_gbasm.{d}.tsv", d=Domains),
+    expand(path.bacdive/"bdid_rsasm.by_rsasm.{d}.tsv", d=Domains),
+    expand(path.bacdive/"bdid_rsasm.by_gbseq.{d}.tsv", d=Domains),
+    expand(path.bacdive/"bdid_rsasm.by_rsseq.{d}.tsv", d=Domains)
+  output:
+    accessions=path.bacdive/"bdid_rsasm.tsv"
+  shell:
+    """
+    cat {input} | sort -n --unique > {output.accessions}
+    """
+
+rule extract_bacdive_with_complete_genome:
+  input:
+    accessions=rules.match_bacdive_accessions.output.accessions,
+    details=path.bacdive/"bacdive.details"
+  output:
+    accessions_sorted=temp(path.bacdive/"bdid_rsasm.sorted_by_id.tsv"),
+    details_sorted=temp(path.bacdive/"bacdive.sorted_by_id.details"),
+    details_extracted=path.bacdive/"bacdive.w_complete_g.details"
+  shell:
+    """
+    sort -t$'\\t' -k1b,1 {input.details} > {output.details_sorted}
+    sort -t$'\\t' -k1b,1 {input.accessions} > {output.accessions_sorted}
+    join -t$'\\t' {output.details_sorted} \
+                  {output.accessions_sorted} -j 1 > \
+                  {output.details_extracted}
     """
 
 rule show_structure:
   input:
-    bacdivedir+"bacdive.w_complete_g.details"
+    rules.extract_bacdive_with_complete_genome.output.details_extracted
   output:
-    bacdivedir+"bacdive.w_complete_g.structure"
+    structure=path.bacdive/"bacdive.w_complete_g.structure"
   shell:
     """
-    scripts/json_tree_leaves.py {input} 4 1 > {output}
+    scripts/json_tree_leaves.py {input} 4 1 > {output.structure}
     """
 
 rule summary_paths:
   input:
-    bacdivedir+"bacdive.w_complete_g.structure"
+    structure=rules.show_structure.output.structure
   output:
-    bacdivedir+"bacdive.w_complete_g.paths_freq"
+    path.bacdive/"bacdive.w_complete_g.paths_freq"
   shell:
     """
-    cut -d$'\\t' -f 1 {input} | sort | uniq -c \
+    cut -d$'\\t' -f 1 {input.structure} | sort | uniq -c \
         | sort -n -r > {output}
     """
 
 rule summary_leaves:
   input:
-    bacdivedir+"bacdive.w_complete_g.structure"
+    structure=rules.show_structure.output.structure
   output:
-    bacdivedir+"bacdive.w_complete_g.leaves_freq"
+    path.bacdive/"bacdive.w_complete_g.leaves_freq"
   shell:
     """
-    cut -d$'\\t' -f 2 {input} | sort | uniq -c \
+    cut -d$'\\t' -f 2 {input.structure} | sort | uniq -c \
         | sort -n -r > {output}
-    """
-
-Domains = ["archaea", "bacteria"]
-
-rule match_bacdive_accessions:
-  input:
-    expand(bacdivedir+"bdid_rsasm.by_gbasm.{d}.tsv", d=Domains),
-    expand(bacdivedir+"bdid_rsasm.by_rsasm.{d}.tsv", d=Domains),
-    expand(bacdivedir+"bdid_rsasm.by_gbseq.{d}.tsv", d=Domains),
-    expand(bacdivedir+"bdid_rsasm.by_rsseq.{d}.tsv", d=Domains)
-  output:
-    bacdivedir+"bdid_rsasm.tsv"
-  shell:
-    """
-    cat {input} | sort -n --unique > {output}
-    """
-
-rule match_bacdive_ids_with_gbasm_accessions:
-  input:
-    b=bacdivedir+"bacdive.accessions.tsv",
-    a=accdir+"gbasm_rsasm.{domain}.tsv"
-  output:
-    temp(bacdivedir+"bdid_rsasm.by_gbasm.{domain}.tsv")
-  shell:
-    """
-    scripts/match_accessions.py {input.b} 1 2 \
-                                {input.a} 1 2 --strip > {output}
-    """
-
-rule match_bacdive_ids_with_rsasm_accessions:
-  input:
-    b=bacdivedir+"bacdive.accessions.tsv",
-    a=accdir+"rsasm.{domain}.tsv"
-  output:
-    temp(bacdivedir+"bdid_rsasm.by_rsasm.{domain}.tsv")
-  shell:
-    """
-    scripts/match_accessions.py {input.b} 1 2 \
-                                {input.a} 1 1 --strip > {output}
-    """
-
-rule match_bacdive_ids_with_gbseq_accessions:
-  input:
-    b=bacdivedir+"bacdive.accessions.tsv",
-    a=accdir+"gbasm_rsasm_gbseq.{domain}.tsv"
-  output:
-    temp(bacdivedir+"bdid_rsasm.by_gbseq.{domain}.tsv")
-  shell:
-    """
-    scripts/match_accessions.py {input.b} 1 2 \
-                    {input.a} 3 2 --strip --multi > {output}
-    """
-
-rule match_bacdive_ids_with_rsseq_accessions:
-  input:
-    b=bacdivedir+"bacdive.accessions.tsv",
-    a=accdir+"rsasm_rsseq.{domain}.tsv"
-  output:
-    temp(bacdivedir+"bdid_rsasm.by_rsseq.{domain}.tsv")
-  shell:
-    """
-    scripts/match_accessions.py {input.b} 1 2 \
-                    {input.a} 2 1 --strip --multi > {output}
     """
 

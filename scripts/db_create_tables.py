@@ -23,7 +23,7 @@ Options:
 """
 from sqlalchemy import create_engine
 from docopt import docopt
-from schema import Schema, And
+from schema import Schema, And, Optional
 import os
 import importlib
 
@@ -43,9 +43,19 @@ def validated(arguments):
                    "<dbpass>": And(str, len),
                    "<dbname>": And(str, len),
                    "<dbsocket>": And(str, len, os.path.exists),
-                   str: object})
+                   "<file>": open,
+                   Optional(str): object})
   return schema.validate(arguments)
 
-if __name__ == "__main__":
+if "snakemake" in globals():
+  arguments = {
+      "<dbuser>": snakemake.config["dbuser"],
+      "<dbpass>": snakemake.config["dbpass"],
+      "<dbname>": snakemake.config["dbname"],
+      "<dbsocket>": snakemake.input.socket,
+      "<file>": snakemake.input.schema
+      }
+  main(validated(arguments))
+elif __name__ == "__main__":
   arguments = docopt(__doc__, version="0.1")
   main(validated(arguments))

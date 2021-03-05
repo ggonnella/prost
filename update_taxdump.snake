@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
-import os
-
-taxdir=os.environ["HOME"]+"/data/ncbi_taxonomy/"
+include: "common.snake"
 
 # The following mechanism is used to allow updating a file, if necessary:
 #
@@ -13,7 +11,7 @@ taxdir=os.environ["HOME"]+"/data/ncbi_taxonomy/"
 # (curl -z) and downloads only if newer.
 #
 # since update_taxdump is a checkpoint, after it is run, the DAG is recomputed.
-# "nodes.dmp" is still required by all, which is done, by if there is now a new
+# "nodes.dmp" is still required by all, which is made, if there is now a new
 # taxdump file; otherwise the old one is kept.
 #
 # just requiring nodes.dmp would not work, since the file already exists
@@ -27,58 +25,52 @@ taxdir=os.environ["HOME"]+"/data/ncbi_taxonomy/"
 
 rule all:
   input:
-    taxdir+"taxdump.updated",
-    taxdir+"nodes.dmp"
+    path.tax/"taxdump.updated",
+    path.tax/"nodes.dmp"
+
+rule prepare_update:
+  params:
+    possible_input=path.tax/"taxdump.tar.gz"
+  output:
+    taxdump=path.tax/"current_taxdump.tar.gz"
+  shell:
+    """
+    if [ -e {params.possible_input} ]; then
+      mv {params.possible_input} {output.taxdump}
+    else
+      touch {output.taxdump}
+    fi
+    """
 
 checkpoint update_taxdump:
   input:
-    taxdir+"current_taxdump.tar.gz"
+    taxdump=rules.prepare_update.output.taxdump
   output:
-    temp(touch(taxdir+"taxdump.updated")),
-    taxdir+"taxdump.tar.gz"
+    done=temp(touch(path.tax/"taxdump.updated")),
+    taxdump=path.tax/"taxdump.tar.gz"
   params:
     remote="ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
   shell:
     """
-    if [ -s {input} ]; then
-      curl -o {output[1]} -z {input} {params.remote}
+    if [ -s {input.taxdump} ]; then
+      curl -o {output.taxdump} -z {input.taxdump} {params.remote}
     else
-      rm {input}
-      curl -o {output[1]} {params.remote}
+      rm {input.taxdump}
+      curl -o {output.taxdump} {params.remote}
     fi
-    if [ ! -e {output[1]} ]; then
-      mv {input} {output[1]}
-    fi
-    """
-
-rule prepare_update:
-  params:
-    possible_input=taxdir+"taxdump.tar.gz"
-  output:
-    taxdir+"current_taxdump.tar.gz"
-  shell:
-    """
-    if [ -e {params.possible_input} ]; then
-      mv {params.possible_input} {output}
-    else
-      touch {output}
+    if [ ! -e {output.taxdump} ]; then
+      mv {input.taxdump} {output.taxdump}
     fi
     """
 
 rule decompress_taxdump:
   input:
-    ar=taxdir+"taxdump.tar.gz"
+    taxdump=rules.update_taxdump.output.taxdump
   output:
-    taxdir+"citations.dmp",
-    taxdir+"delnodes.dmp",
-    taxdir+"division.dmp",
-    taxdir+"gencode.dmp",
-    taxdir+"merged.dmp",
-    taxdir+"names.dmp",
-    taxdir+"nodes.dmp",
-    taxdir+"gc.prt",
-    taxdir+"readme.txt"
+    expand(path.tax/"{table}.dmp",
+        table=["names", "nodes", "gencode", "division",
+               "merged", "delnodes", "citations"])
   shell:
     """
-    tar xvf {input.ar} -C {taxdir}
+    tar xvf {input.taxdump} -C {path.tax}
     """

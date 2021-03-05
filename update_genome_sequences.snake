@@ -4,33 +4,32 @@ import os
 import shutil
 import re
 
+include: "common.snake"
+
 DBs = ["refseq", "genbank"]
 Domains = ["bacteria", "archaea"]
 
-genomesdir=os.environ["HOME"]+"/data/prok_complete_genomes/"
-asmsummarydir=genomesdir+"asmsummary/"
-
 rule all:
   input:
-    asmsummarydir+"/assembly.updated",
-    expand(asmsummarydir+"complete_genomes_refseq_{domain}.{unit}.done",
+    path.asmsummary/"/assembly.updated",
+    expand(path.asmsummary/"complete_genomes_refseq_{domain}.{unit}.done",
         domain=Domains,unit=["new", "obsolete"])
 
 checkpoint prepare:
   output:
-    temp(touch(asmsummarydir+"/assembly.updated"))
+    temp(touch(path.asmsummary/"/assembly.updated"))
   run:
     for db in DBs:
       for domain in Domains:
-        output=asmsummarydir+f"assembly_summary_{db}_{domain}.txt"
+        output=path.asmsummary/f"assembly_summary_{db}_{domain}.txt"
         remote=f"ftp://ftp.ncbi.nlm.nih.gov/genomes/{db}/{domain}/assembly_summary.txt"
         shell(f"curl -o {output} -z {output} {remote}")
 
 rule list_complete_genomes_for_domain:
   input:
-    asmsummarydir+"assembly_summary_{db}_{domain}.txt"
+    path.asmsummary/"assembly_summary_{db}_{domain}.txt"
   output:
-    asmsummarydir+"complete_genomes_{db}_{domain}.txt"
+    path.asmsummary/"complete_genomes_{db}_{domain}.txt"
   run:
     o_f = open(output[0], "w")
     with open(input[0]) as f:
@@ -44,13 +43,13 @@ rule list_complete_genomes_for_domain:
 
 rule create_updating_plan:
   input:
-    asmsummarydir+"complete_genomes_refseq_{domain}.txt"
+    path.asmsummary/"complete_genomes_refseq_{domain}.txt"
   output:
-    new=temp(asmsummarydir+"complete_genomes_refseq_{domain}.new"),
-    obs=temp(asmsummarydir+"complete_genomes_refseq_{domain}.obsolete"),
+    new=temp(path.asmsummary/"complete_genomes_refseq_{domain}.new"),
+    obs=temp(path.asmsummary/"complete_genomes_refseq_{domain}.obsolete"),
     rep=report("updating_plan.report_{domain}.tsv")
   params:
-    chunkspfx=genomesdir+"seq/{domain}/chunk."
+    chunkspfx=path.genomes/"seq/{domain}/chunk."
   run:
     filenames=set(os.path.basename(fn) for fn in \
         glob(params.chunkspfx+"*/*_genomic.fna.gz"))
@@ -78,13 +77,13 @@ rule create_updating_plan:
 
 rule move_obsolete_genomes:
   input:
-    asmsummarydir+"complete_genomes_refseq_{domain}.obsolete"
+    path.asmsummary/"complete_genomes_refseq_{domain}.obsolete"
   output:
-    temp(touch(asmsummarydir+"complete_genomes_refseq_{domain}.obsolete.done"))
+    temp(touch(path.asmsummary/"complete_genomes_refseq_{domain}.obsolete.done"))
   params:
-    chunkspfx=genomesdir+"seq/{domain}/chunk.",
-    obsmaindir=genomesdir+"seq/{domain}/obsolete",
-    obsoletepfx=genomesdir+"seq/{domain}/obsolete/chunk."
+    chunkspfx=path.genomes/"seq/{domain}/chunk.",
+    obsmaindir=path.genomes/"seq/{domain}/obsolete",
+    obsoletepfx=path.genomes/"seq/{domain}/obsolete/chunk."
   run:
     with open(input[0]) as f:
       for line in f:
@@ -98,11 +97,11 @@ rule move_obsolete_genomes:
 
 rule download_new_genomes:
   input:
-    asmsummarydir+"complete_genomes_refseq_{domain}.new"
+    path.asmsummary/"complete_genomes_refseq_{domain}.new"
   output:
-    temp(touch(asmsummarydir+"complete_genomes_refseq_{domain}.new.done"))
+    temp(touch(path.asmsummary/"complete_genomes_refseq_{domain}.new.done"))
   params:
-    chunkspfx=genomesdir+"seq/{domain}/chunk.",
+    chunkspfx=path.genomes/"seq/{domain}/chunk.",
     chunkmaxsize=500
   run:
     if os.stat(input[0]).st_size > 0:

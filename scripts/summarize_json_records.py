@@ -4,7 +4,7 @@ Vizualize information about the structure of a set of JSON records
 in a TSV file.
 
 Usage:
-  ./summarize_json_records.py [options] <tsvfile> <colnum>
+  summarize_json_records.py [options] <tsvfile> <colnum>
 
 Arguments:
   tsvfile  filename containing the JSON information
@@ -17,7 +17,7 @@ Options:
 """
 
 from docopt import docopt
-from schema import Schema, Use, And
+from schema import Schema, Use, And, Optional
 from collections import Counter
 import json
 import sys
@@ -137,8 +137,8 @@ def main(arguments):
 
 def validated(arguments):
   colnum = And(Use(lambda i: int(i)-1), lambda i: i>=0)
-  schema = Schema({"<tsvfile>": Use(open), "<colnum>": colnum},
-                  ignore_extra_keys=True)
+  schema = Schema({"<tsvfile>": Use(open), "<colnum>": colnum,
+                  Optional(str): object})
   return schema.validate(arguments)
 
 if __name__ == "__main__":

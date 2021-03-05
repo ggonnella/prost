@@ -1,0 +1,8 @@
+dataroot: /home/gonnella/data
+bacdive_user: gonnella@zbh.uni-hamburg.de
+bacdive_pass: bacdivepass
+dbuser: prostuser
+dbpass: prostpass
+dbname: prostdb
+dbrootpass: root
+sysuser: gonnella

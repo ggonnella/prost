@@ -26,7 +26,7 @@ Options:
 import requests
 from requests.auth import HTTPBasicAuth
 from docopt import docopt
-from schema import Schema, Use, Or
+from schema import Schema, Use, Or, Optional
 import sys
 import re
 
@@ -97,8 +97,8 @@ def validated(arguments):
   schema = Schema({
     "<idlist>": Use(lambda fn: open(fn, "a+")),
     "<username>": str, "<password>": str,
-    "--done": Or(None, int)
-    }, ignore_extra_keys=True)
+    "--done": Or(None, int),
+    Optional(str): object})
   return schema.validate(arguments)
 
 if __name__ == "__main__":

@@ -30,34 +30,34 @@ import sys
 import hashlib
 from docopt import docopt
 from datetime import datetime
-from schema import Schema, Use, Or
+from schema import Schema, Use, Or, Optional
 
-def main(arguments):
-  if arguments["--verbose"]:
+def main(args):
+  if args["--verbose"]:
     sys.stderr.write("# This script downloads strain data from Bacdive\n")
-    sys.stderr.write(f"# Username: {arguments['<username>']}\n")
-    sys.stderr.write(f"# Password: {arguments['<password>']}\n")
+    sys.stderr.write(f"# Username: {args['<username>']}\n")
+    sys.stderr.write(f"# Password: {args['<password>']}\n")
   processed_ids = set()
-  if arguments["--previous"]:
-    for line in arguments["--previous"]:
+  if args["--previous"]:
+    for line in args["--previous"]:
       bacdiveid = line.split("\t")[0]
       processed_ids.add(bacdiveid)
-  if arguments["--verbose"]:
+  if args["--verbose"]:
     sys.stderr.write(\
         f"# N. previously downloaded strains: {len(processed_ids)}\n")
   headers = {'Accept': 'application/json'}
-  credentials = HTTPBasicAuth(arguments["<username>"], arguments["<password>"])
+  credentials = HTTPBasicAuth(args["<username>"], args["<password>"])
   baseurl='https://bacdive.dsmz.de/api/bacdive/bacdive_id/'
   n_new_ids = 0
   n_old_ids = 0
-  for line in arguments["<idlist>"]:
+  for line in args["<idlist>"]:
     bacdive_id = line.rstrip()
     if bacdive_id in processed_ids:
       n_old_ids += 1
     else:
       n_new_ids += 1
       url = baseurl + bacdive_id
-      if arguments["--verbose"]:
+      if args["--verbose"]:
         sys.stderr.write("# GET: "+url+"\n")
       response = requests.get(url, headers = headers, auth=credentials)
       if response.status_code != 200:
@@ -65,19 +65,18 @@ def main(arguments):
       md5 = hashlib.md5(response.text.encode('utf-8')).hexdigest()
       ts = str(datetime.timestamp(datetime.now()))
       print("\t".join([bacdive_id, md5, ts, response.text]))
-  if arguments["--verbose"]:
+  if args["--verbose"]:
     sys.stderr.write("# All IDs processed\n")
     sys.stderr.write(f"# N. IDs ignored as already downloaded: {n_old_ids}\n")
     sys.stderr.write(f"# N. IDs for which info was downloaded: {n_new_ids}\n")
 
-def validated(arguments):
+def validated(args):
   schema = Schema({
     "<idlist>": Use(open), "<username>": str, "<password>": str,
-    "--previous": Or(None, Use(open))
-    }, ignore_extra_keys=True)
-  return schema.validate(arguments)
+    "--previous": Or(None, Use(open)), Optional(str): object})
+  return schema.validate(args)
 
 if __name__ == "__main__":
-  arguments = docopt(__doc__, version="0.1")
-  main(validated(arguments))
+  args = docopt(__doc__, version="0.1")
+  main(validated(args))
 
