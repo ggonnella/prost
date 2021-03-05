@@ -23,10 +23,19 @@ include: "common.snake"
 # and with a force flag or a flag file, the output would be removed before
 # running the rule, thus re-downloaded every time.
 
+def all_targets(wildcards):
+  taxdump_updated=path.tax/"taxdump.updated"
+  if os.path.exists(taxdump_updated):
+    return [taxdump_updated, path.tax/"nodes.dmp"]
+  else:
+    return [taxdump_updated]
+
 rule all:
-  input:
-    path.tax/"taxdump.updated",
-    path.tax/"nodes.dmp"
+  input: all_targets
+  shell:
+    """
+    rm {input[0]}
+    """
 
 rule prepare_update:
   params:
@@ -36,8 +45,10 @@ rule prepare_update:
   shell:
     """
     if [ -e {params.possible_input} ]; then
+      echo mv {params.possible_input} {output.taxdump}
       mv {params.possible_input} {output.taxdump}
     else
+      echo touch {output.taxdump}
       touch {output.taxdump}
     fi
     """
@@ -49,23 +60,27 @@ checkpoint update_taxdump:
     done=temp(touch(path.tax/"taxdump.updated")),
     taxdump=path.tax/"taxdump.tar.gz"
   params:
-    remote="ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
+    remote="ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz",
+    timestamp=path.tax/"download.timestamp"
   shell:
     """
-    if [ -s {input.taxdump} ]; then
-      curl -o {output.taxdump} -z {input.taxdump} {params.remote}
+    if [ -e {params.timestamp} ]; then
+      curl -o {output.taxdump} -z {params.timestamp} {params.remote}
     else
-      rm {input.taxdump}
       curl -o {output.taxdump} {params.remote}
     fi
-    if [ ! -e {output.taxdump} ]; then
+    if [ -e {output.taxdump} ]; then
+      rm {input.taxdump}
+      touch {params.timestamp}
+    else
       mv {input.taxdump} {output.taxdump}
     fi
     """
 
 rule decompress_taxdump:
   input:
-    taxdump=rules.update_taxdump.output.taxdump
+    timestamp=path.tax/"download.timestamp",
+    taxdump=ancient(path.tax/"taxdump.tar.gz")
   output:
     expand(path.tax/"{table}.dmp",
         table=["names", "nodes", "gencode", "division",
