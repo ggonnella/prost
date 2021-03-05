@@ -4,7 +4,7 @@ Bulk insert NCBI assembly summary.
 The table must exist already.
 
 Usage:
-  ./ncbi_taxonomy_db_bulk_insert.py [options] <dbuser> <dbpass> <dbname> <dbsocket> <file> <database> <domain>
+  ncbi_taxonomy_db_bulk_insert.py [options] <dbuser> <dbpass> <dbname> <dbsocket> <file> <database> <domain>
 
 Arguments:
   dbuser:    database user to use

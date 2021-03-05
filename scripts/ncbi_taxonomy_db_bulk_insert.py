@@ -26,7 +26,7 @@ import tqdm
 import sh
 from docopt import docopt
 from schema import Schema, And, Use
-import ncbi_taxonomy_db
+from dbschema.ncbi_taxonomy_db import tablename2class
 import os
 
 def main(arguments):
@@ -36,8 +36,7 @@ def main(arguments):
                        db=arguments["<dbname>"],
                        unix_socket=arguments["<dbsocket>"],
                        use_unicode=True)
-  columns = ncbi_taxonomy_db.tablename2class[\
-              arguments["<table>"]].file_column_names()
+  columns = tablename2class[arguments["<table>"]].file_column_names()
   cursor = db.cursor()
   query = "INSERT INTO "
   query += arguments["<table>"] + "("

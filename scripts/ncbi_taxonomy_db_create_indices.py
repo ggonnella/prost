@@ -2,6 +2,9 @@
 """
 Create NCBI taxonomy database indices for a table
 
+This was splitted from the table creation,
+in order to defer it after the bulk import.
+
 Usage:
   ./ncbi_taxonomy_create_indices.py [options] <dbuser> <dbpass> <dbname> <dbsocket> <table>
 
@@ -18,13 +21,8 @@ Options:
   --help, -h       show this help message
 """
 
-from sqlalchemy.sql import func
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Sequence, Column, Integer, String, Index, DateTime
-from sqlalchemy.orm import relationship
-import ncbi_taxonomy_db
 from sqlalchemy import create_engine
-from ncbi_taxonomy_db import NtName
+from dbschema.ncbi_taxonomy_db import tablename2class
 from docopt import docopt
 from schema import Schema, And, Use
 import os
@@ -43,8 +41,8 @@ def validated(arguments):
                    "<dbname>": And(str, len),
                    "<dbsocket>": And(str, len, os.path.exists),
                    "<table>": And(lambda n:
-                     n in ncbi_taxonomy_db.tablename2class,
-                     Use(lambda n: ncbi_taxonomy_db.tablename2class[n])),
+                     n in tablename2class,
+                     Use(lambda n: tablename2class[n])),
                    str: object})
   return schema.validate(arguments)
 

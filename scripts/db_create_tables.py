@@ -3,7 +3,7 @@
 Create all tables from a SqlAlchemy schema file.
 
 Usage:
-  ncbi_assembly_summary_init.py [options] <dbuser> <dbpass> <dbname> <dbsocket> <file>
+  db_create_tables.py [options] <dbuser> <dbpass> <dbname> <dbsocket> <file>
 
 Arguments:
   dbuser:    database user to use

@@ -19,7 +19,7 @@ Options:
 """
 
 from sqlalchemy import create_engine
-from ncbi_taxonomy_db import NtNode
+from dbschema.ncbi_taxonomy_db import NtNode
 from docopt import docopt
 from schema import Schema, And, Use, Or
 import os
