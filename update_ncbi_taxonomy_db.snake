@@ -30,6 +30,11 @@ rule create_tables:
     done=touch(path.tables/"done.create_tables.ncbi_taxonomy")
   script: "scripts/db_create_tables.py"
 
+#
+# TODO: drop tables if dmp files are new
+#
+#
+
 rule insert_bulk:
   input:
     ancient(rules.create_tables.output.done),
@@ -56,5 +61,5 @@ rule get_subtree:
     rules.index_all.output.done,
     socket=ancient(path.socket)
   params:
-    root=config["root"]
+    root=config.get("root")
   script: "scripts/ncbi_taxonomy_db_extract_subtree.py"
