@@ -3,15 +3,41 @@
 include: "common.snake"
 
 #
-# Notes:
-# - in previous versions of snakemake the ancient() function did
-#   not work properly here (i.e. on files created by other rules);
-#   in this case, update snakemake (version 5.32.2 works)
-# - when updating snakemake, conda messed up with libffi; the
-#   workaround is to go to the directory lib under the active env location
-#   (see with conda info, in my case it is ~/tools/miniconda/3/lib) and do
-#   ```ln -s libffi.so.7 libffi.so.6```
+# The replace_dead_socket is used to check that the socket (if it exists) allows
+# a connection. If this is not the case (e.g. after a system restart without
+# stopping the server), then the dead socket file is removed and the MySQL
+# server is restarted.
 #
+# Since it checks if the socket file exists, and if the root password has
+# already been set, nothing happens if the database had not been created and
+# configured correctly.
+#
+# All rules which require the socket as input should not care about its
+# timestamp, i.e. use input: socket=ancient(path.socket).
+#
+replace_dead_socket=\
+      f"if test -S {path.socket}; then "+\
+      f"  if test -e {path.db}/done.set_root_password; then"+\
+      f"    if ! mysql -u root --password={config['dbrootpass']} "+\
+      f"               -S {path.socket} -e';'; then "+\
+      f"      rm {path.socket}; "+\
+      f"      echo 'restarting DB server...';"+\
+      f"      mysqld_safe --datadir={path.dbdata}"+\
+      f"           --socket={path.socket}"+\
+      f"           --user={config['sysuser']} &"+\
+       "      sleep 1;"+\
+       "    fi;"+\
+       "  fi;"+\
+       "fi"
+
+onstart:
+  shell(replace_dead_socket)
+
+rule all:
+  input:
+    socket=path.socket
+
+## Database initialization/creation
 
 rule initialize:
   output:
@@ -21,43 +47,21 @@ rule initialize:
     mysql_install_db --user={config[sysuser]} --datadir={output.datadir}
     """
 
-checkpoint start_server:
-  input:
-    datadir=rules.initialize.output.datadir
-  output:
-    socket=path.socket
-  shell:
-    """
-    mysqld_safe --datadir={input.datadir} \
-                --socket={output.socket} \
-                --user={config[sysuser]} &
-    """
-
 rule set_root_password:
   input:
-    socket=ancient(rules.start_server.output.socket),
+    socket=ancient(path.socket),
     datadir=ancient(rules.initialize.output.datadir)
   output:
     done=touch(path.db/"done.set_root_password")
   shell:
     """
-    mysqladmin -u root --socket={socket} password {dbrootpass}
-    """
-
-rule stop_server:
-  input:
-    ancient(rules.set_root_password.output.done),
-    socket=ancient(rules.start_server.output.socket)
-  shell:
-    """
-    mysqladmin -u root --password={config[dbrootpass]} \
-                       --socket={input.socket} shutdown
+    mysqladmin -u root --socket={input.socket} password {config[dbrootpass]}
     """
 
 rule create_db:
   input:
     ancient(rules.set_root_password.output.done),
-    socket=ancient(rules.start_server.output.socket)
+    socket=ancient(path.socket)
   output:
     done=touch(path.db/"done.create_db")
   shell:
@@ -72,7 +76,7 @@ rule create_db:
 rule create_dbuser:
   input:
     ancient(rules.create_db.output.done),
-    socket=ancient(rules.start_server.output.socket)
+    socket=ancient(path.socket)
   output:
     done=touch(path.db/"done.create_db_user")
   shell:
@@ -89,8 +93,33 @@ rule create_dbuser:
                            --socket={input.socket}
     """
 
+## Database administration tasks
+
+rule start_server:
+  input:
+    datadir=path.dbdata
+  output:
+    socket=path.socket
+  shell:
+    """
+    mysqld_safe --datadir={input.datadir} \
+                --socket={output.socket} \
+                --user={config[sysuser]} &
+    """
+
+rule stop_server:
+  input:
+    ancient(rules.set_root_password.output.done),
+    socket=ancient(path.socket)
+  shell:
+    """
+    mysqladmin -u root --password={config[dbrootpass]} \
+                       --socket={input.socket} shutdown
+    """
+
 rule root_connect:
   input:
+    ancient(rules.set_root_password.output.done),
     socket=ancient(rules.start_server.output.socket)
   shell:
     """
@@ -100,6 +129,7 @@ rule root_connect:
 
 rule show_processes:
   input:
+    ancient(rules.set_root_password.output.done),
     socket=ancient(rules.start_server.output.socket)
   shell:
     """
@@ -119,3 +149,16 @@ rule connect:
           -u {config[dbuser]} \
           --password={config[dbpass]}
     """
+
+#
+# Used to create a fake socket to test the replace_dead_socket
+# functionality (see onstart hook). Use after a stop_server,
+# otherwise it will fail. If everything works as intended, the
+# fake socket will be removed and replaced the next time the
+# workflow is executed.
+#
+rule fake_socket:
+  run:
+    import socket
+    sock = socket.socket(socket.AF_UNIX)
+    sock.bind(str(path.socket))
