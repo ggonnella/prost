@@ -22,26 +22,25 @@ rule index_all:
   output:
     done=touch(path.tables/"done.index.ncbi_taxonomy")
 
-rule create_tables:
+rule create_table:
   input:
     socket=ancient(path.socket),
-    schema=srcdir("scripts/ncbi_taxonomy.py")
+    schema=srcdir("scripts/dbschema/ncbi_taxonomy_db.py"),
+    dump=path.tax/"{table}.dmp"
+  params:
+    table="nt_{table}",
+    drop=True
   output:
-    done=touch(path.tables/"done.create_tables.ncbi_taxonomy")
+    done=touch(path.tables/"done.create_tables.ncbi_taxonomy.{table}")
   script: "scripts/db_create_tables.py"
 
-#
-# TODO: drop tables if dmp files are new
-#
-#
-
-rule insert_bulk:
+rule insert:
   input:
-    ancient(rules.create_tables.output.done),
+    path.tables/"done.create_tables.ncbi_taxonomy.{table}",
     socket=ancient(path.socket),
     dump=path.tax/"{table}.dmp"
   params:
-    table="nt_{table}"
+    table="nt_{table}",
   output:
     done=touch(path.tables/"done.insert.ncbi_taxonomy.{table}")
   script: "scripts/ncbi_taxonomy_db_bulk_insert.py"
