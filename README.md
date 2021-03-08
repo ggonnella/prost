@@ -13,7 +13,7 @@ as members of a `path` namespace (e.g. `path.dbdir`).
 ## Creating the database
 
 Running `prostdb.snake` will initialize and create the DB
-if it does not exist yet.
+if it does not exist yet. It also starts or restarts the server if needed.
 
 ## NCBI taxonomy
 

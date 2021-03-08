@@ -9,21 +9,91 @@ include: "common.snake"
 DBs = ["refseq", "genbank"]
 Domains = ["bacteria", "archaea"]
 
-rule all:
-  input:
-    path.asmsummary/"/assembly.updated",
-    expand(path.asmsummary/"complete_genomes_refseq_{domain}.{unit}.done",
-        domain=Domains,unit=["new", "obsolete"])
+#
+# the update strategy of the summaries is the same as in
+# download_ncbi_taxonomy.snake
+#
+# if the summaries are new, an update of the sequences if triggered;
+# this only downloads new sequences; it is robust for the case of
+# errors / broken downloads
+#
 
-checkpoint prepare:
+def all_targets(wildcards):
+  summaries_updated=path.asmsummary/"update_summaries.done"
+  if os.path.exists(summaries_updated):
+    return [summaries_updated, path.asmsummary/"update_sequences.done"]
+  else:
+    return [summaries_updated]
+
+rule all:
+  input: all_targets
+  shell:
+    """
+    rm {input[0]}
+    """
+
+checkpoint update_all_summaries:
+  input:
+    expand(path.asmsummary/"update_summaries.{db}.{domain}.done",
+      db=DBs, domain=Domains)
   output:
-    temp(touch(path.asmsummary/"/assembly.updated"))
-  run:
-    for db in DBs:
-      for domain in Domains:
-        output=path.asmsummary/f"assembly_summary_{db}_{domain}.txt"
-        remote=f"ftp://ftp.ncbi.nlm.nih.gov/genomes/{db}/{domain}/assembly_summary.txt"
-        shell(f"curl -o {output} -z {output} {remote}")
+    touch(path.asmsummary/"update_summaries.done")
+
+rule prepare_update_summaries:
+  params:
+    possible_input=str(path.asmsummary/"assembly_summary_{db}_{domain}.txt")
+  output:
+    current=path.asmsummary/"current_assembly_summary_{db}_{domain}.txt"
+  shell:
+    """
+    if [ -e {params.possible_input} ]; then
+      mv {params.possible_input} {output.current}
+    else
+      touch {output.current}
+    fi
+    """
+
+rule update_summaries:
+  input:
+    to_update=path.asmsummary/"current_assembly_summary_{db}_{domain}.txt"
+  output:
+    done=temp(touch(\
+      path.asmsummary/"update_summaries.{db}.{domain}.done")),
+    updated=path.asmsummary/"assembly_summary_{db}_{domain}.txt"
+  params:
+    remote="ftp://ftp.ncbi.nlm.nih.gov/genomes/{db}/{domain}/"+\
+           "assembly_summary.txt",
+    timestamp=str(path.asmsummary/
+        "assembly_summary_{db}_{domain}.update_timestamp")
+  shell:
+    """
+    if [ -e {params.timestamp} ]; then
+      curl -o {output.updated} -z {params.timestamp} {params.remote}
+    else
+      curl -o {output.updated} {params.remote}
+    fi
+    if [ -e {output.updated} ]; then
+      rm {input.to_update}
+      touch {params.timestamp}
+    else
+      mv {input.to_update} {output.updated}
+    fi
+    """
+
+rule update_all_sequences:
+  input:
+    expand(path.asmsummary/"update_sequences.refseq.{domain}.done",
+           domain=Domains)
+  output:
+    temp(touch(path.asmsummary/"update_sequences.done"))
+
+rule update_sequences:
+  input:
+    path.asmsummary/"assembly_summary_refseq_{domain}.update_timestamp",
+    path.asmsummary/"complete_genomes_refseq_{domain}.new.done",
+    path.asmsummary/"complete_genomes_refseq_{domain}.obsolete.done"
+  output:
+    temp(touch(path.asmsummary/"update_sequences.refseq.{domain}.done"))
 
 rule list_complete_genomes_for_domain:
   input:
@@ -36,7 +106,9 @@ rule list_complete_genomes_for_domain:
       for line in f:
         if line[0] != "#":
           elems = line.rstrip().split("\t")
-          if elems[10] == "latest" and elems[11] == "Complete Genome":
+          if elems[10] == "latest" and \
+             elems[11] == "Complete Genome" and \
+             elems[19] != "na":
             # asmacc ftppath
             o_f.write("\t".join([elems[0], elems[19]])+"\n")
     o_f.close()
@@ -49,7 +121,7 @@ rule create_updating_plan:
     obs=temp(path.asmsummary/"complete_genomes_refseq_{domain}.obsolete"),
     rep=report("updating_plan.report_{domain}.tsv")
   params:
-    chunkspfx=path.genomes/"seq/{domain}/chunk."
+    chunkspfx=str(path.genomes/"seq/{domain}/chunk.")
   run:
     filenames=set(os.path.basename(fn) for fn in \
         glob(params.chunkspfx+"*/*_genomic.fna.gz"))
@@ -81,19 +153,21 @@ rule move_obsolete_genomes:
   output:
     temp(touch(path.asmsummary/"complete_genomes_refseq_{domain}.obsolete.done"))
   params:
-    chunkspfx=path.genomes/"seq/{domain}/chunk.",
-    obsmaindir=path.genomes/"seq/{domain}/obsolete",
-    obsoletepfx=path.genomes/"seq/{domain}/obsolete/chunk."
+    chunkspfx=str(path.genomes/"seq/{domain}/chunk."),
+    obsmaindir=str(path.genomes/"seq/{domain}/obsolete")
   run:
     with open(input[0]) as f:
       for line in f:
         fn = line.rstrip()
         srcfile = glob(params.chunkspfx+"*/"+fn)[0]
-        chunknum = os.path.dirname(srcfile).split("/")[-1].split(".")[1]
-        obsdir = params.obsoletepfx+chunknum
-        if not os.path.exists(params.obsmaindir): os.mkdir(params.obsmaindir)
-        if not os.path.exists(obsdir): os.mkdir(obsdir)
-        shutil.move(srcfile, obsdir)
+        # check if file exists: it may not, if the workflow
+        # was previously interrupted by an error
+        if os.path.exists(srcfile):
+          chunknum = os.path.dirname(srcfile).split("/")[-1].split(".")[1]
+          obsdir = params.obsmaindir+("/chunk."+chunknum)
+          if not os.path.exists(params.obsmaindir): os.mkdir(params.obsmaindir)
+          if not os.path.exists(obsdir): os.mkdir(obsdir)
+          shutil.move(srcfile, obsdir)
 
 rule download_new_genomes:
   input:
@@ -101,9 +175,12 @@ rule download_new_genomes:
   output:
     temp(touch(path.asmsummary/"complete_genomes_refseq_{domain}.new.done"))
   params:
-    chunkspfx=path.genomes/"seq/{domain}/chunk.",
+    downloadtmp=str(path.genomes/"download_in_progress.{domain}"),
+    chunkspfx=str(path.genomes/"seq/{domain}/chunk."),
     chunkmaxsize=500
   run:
+    shutil.rmtree(params.downloadtmp, ignore_errors=True)
+    os.mkdir(params.downloadtmp)
     if os.stat(input[0]).st_size > 0:
       chunknums = \
         [int(os.path.splitext(x)[1][1:]) for x in glob(params.chunkspfx+"*")]
@@ -119,11 +196,36 @@ rule download_new_genomes:
       with open(input[0]) as f:
         for line in f:
           elems = line.rstrip().split("\t")
-          if genomenum == params.chunkmaxsize:
-            genomenum = 0
-            chunknum += 1
-            chunkdir = params.chunkspfx+str(chunknum)
-            os.mkdir(chunkdir)
-          genomenum+=1
-          shell("wget "+elems[1]+"/"+elems[0]+" -O "+chunkdir+"/"+elems[0])
+          remote_path = elems[1]
+          fname = elems[0]
+          # check if file exists: it may already, if the workflow
+          # was previously interrupted by an error
+          found = glob(str(path.genomes/"seq"/wildcards.domain/"**"/fname))
+          if found:
+            print(f"Skipping {fname} as already dowloaded: {found[0]}")
+          else:
+            if genomenum == params.chunkmaxsize:
+              genomenum = 0
+              chunknum += 1
+              chunkdir = params.chunkspfx+str(chunknum)
+              os.mkdir(chunkdir)
+            genomenum+=1
+            tmpdest = os.path.join(params.downloadtmp, fname)
+            finaldest = os.path.join(chunkdir, fname)
+            shell(f"wget {remote_path}/{fname} -O {tmpdest} && "+\
+                  f"mv {tmpdest} {finaldest}")
+            print(f"Downloaded {fname} as: {finaldest}")
+    shutil.rmtree(params.downloadtmp, ignore_errors=True)
 
+rule check_downloaded_files:
+  params:
+    files=str(path.genomes/"seq"/"*"/"chunk.*"/"*.fna.gz")
+  shell:
+    """
+    for file in {params.files}; do
+      if ! gzip -v -t $file; then
+        rm $file
+        echo "removed invalid file: $file"
+      fi
+    done
+    """

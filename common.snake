@@ -6,7 +6,7 @@ This file contains common variable definitions.
 import types
 import pathlib
 
-configfile: "config.yaml"
+configfile: srcdir("config.yaml")
 
 # directory structure under the data directory
 r = pathlib.Path(config["dataroot"])
