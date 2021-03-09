@@ -107,7 +107,7 @@ if "snakemake" in globals():
       "<file>": snakemake.input.datasrc,
       "<database>": snakemake.wildcards.db,
       "<domain>": snakemake.wildcards.domain,
-      "--update": False,
+      "--update": snakemake.params.get("update", False),
       "--batch": 20000
       }
   main(arguments)

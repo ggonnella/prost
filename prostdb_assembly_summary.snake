@@ -29,8 +29,11 @@ rule insert:
   input:
     ancient(rules.create_tables.output),
     socket=ancient(path.socket),
-    datasrc=path.asmsummary/"assembly_summary_{db}_{domain}.txt"
+    ts=path.asmsummary/"assembly_summary_{db}_{domain}.update_timestamp",
+    datasrc=ancient(path.asmsummary/"assembly_summary_{db}_{domain}.txt")
   output:
     touch(path.tables/"done.insert.ncbi_assembly_summary.{db}.{domain}")
+  params:
+    update=True
   script:
     "scripts/ncbi_assembly_summary_bulk_insert.py"
