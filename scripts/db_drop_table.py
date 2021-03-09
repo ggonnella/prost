@@ -31,7 +31,6 @@ def main(args):
                        db=args["<dbname>"],
                        unix_socket=args["<dbsocket>"],
                        use_unicode=True)
-  columns = tablename2class[args["<table>"]].file_column_names()
   cursor = db.cursor()
   query = "DROP TABLE `{}`;".format(args["<table>"])
   cursor.execute(query)
