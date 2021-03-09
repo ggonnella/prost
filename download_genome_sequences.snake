@@ -95,27 +95,29 @@ rule update_sequences:
   output:
     temp(touch(path.asmsummary/"update_sequences.refseq.{domain}.done"))
 
-rule list_complete_genomes_for_domain:
+rule select_complete_genomes_for_domain:
   input:
-    path.asmsummary/"assembly_summary_{db}_{domain}.txt"
+    ts=path.asmsummary/"assembly_summary_{db}_{domain}.update_timestamp",
+    sm=ancient(path.asmsummary/"assembly_summary_{db}_{domain}.txt")
   output:
-    path.asmsummary/"complete_genomes_{db}_{domain}.txt"
+    selected=path.asmsummary/"complete_genomes_summary_{db}_{domain}.txt"
   run:
-    o_f = open(output[0], "w")
-    with open(input[0]) as f:
+    o_f = open(output.selected, "w")
+    with open(input.sm) as f:
       for line in f:
-        if line[0] != "#":
+        if line[0] == "#":
+          o_f.write(line)
+        else:
           elems = line.rstrip().split("\t")
           if elems[10] == "latest" and \
              elems[11] == "Complete Genome" and \
              elems[19] != "na":
-            # asmacc ftppath
-            o_f.write("\t".join([elems[0], elems[19]])+"\n")
+            o_f.write(line)
     o_f.close()
 
 rule create_updating_plan:
   input:
-    path.asmsummary/"complete_genomes_refseq_{domain}.txt"
+    path.asmsummary/"complete_genomes_summary_refseq_{domain}.txt"
   output:
     new=temp(path.asmsummary/"complete_genomes_refseq_{domain}.new"),
     obs=temp(path.asmsummary/"complete_genomes_refseq_{domain}.obsolete"),
@@ -131,12 +133,13 @@ rule create_updating_plan:
     n_obs = 0
     with open(input[0]) as f:
       for line in f:
+        if line[0] == "#": continue
         elems = line.rstrip().split("\t")
-        fn = elems[1].split("/")[-1] + "_genomic.fna.gz"
+        fn = elems[19].split("/")[-1] + "_genomic.fna.gz"
         if fn in filenames:
           filenames.remove(fn)
         else:
-          out_new.write(fn+"\t"+elems[1]+"\n")
+          out_new.write(fn+"\t"+elems[19]+"\n")
           n_new += 1
       for fn in filenames:
         out_obs.write(fn+"\n")
@@ -213,6 +216,7 @@ rule download_new_genomes:
             tmpdest = os.path.join(params.downloadtmp, fname)
             finaldest = os.path.join(chunkdir, fname)
             shell(f"wget {remote_path}/{fname} -O {tmpdest} && "+\
+                  f"gzip -t {tmpdest} && "+\
                   f"mv {tmpdest} {finaldest}")
             print(f"Downloaded {fname} as: {finaldest}")
     shutil.rmtree(params.downloadtmp, ignore_errors=True)
