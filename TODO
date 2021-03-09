@@ -1,0 +1,15 @@
+(1) numerical rule with one datapoint per genome
+(2) taxonomic grouping
+
+for each complete genome
+  compute stat and store it in table genome_stats accession/statname/value
+
+
+select taxid from ncbi_assembly_summary where accession = "GCF_904425475.1";
+
+
+genome of interest, parentID
+compute stat in tree under parentID
+  and under each of the ancestors of parentID
+
+by computing the taxIDs and collecting the corresponding genome_stat from genome_stats
