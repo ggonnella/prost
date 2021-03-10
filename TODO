@@ -1,15 +1,15 @@
-(1) numerical rule with one datapoint per genome
-(2) taxonomic grouping
+add more statistics
+=> statistics from NCBI assembly report
+=> what about the functional annotations?
 
-for each complete genome
-  compute stat and store it in table genome_stats accession/statname/value
+allow to estimate taxid by rRNA
+=> compute rRNA using barrnap and/or RNAmmer
+=> classify 16S (using which program?)
 
+use phenotype-based groups:
+=> bacdive
+=> other?
 
-select taxid from ncbi_assembly_summary where accession = "GCF_904425475.1";
+separate bacdive from the rest
 
-
-genome of interest, parentID
-compute stat in tree under parentID
-  and under each of the ancestors of parentID
-
-by computing the taxIDs and collecting the corresponding genome_stat from genome_stats
+statistics which are not single per genome?
