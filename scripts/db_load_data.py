@@ -15,14 +15,16 @@ Arguments:
   columns:   list of columns
 
 Options:
+  --ignore, -i     use IGNORE on repeated primary key (default: REPLACE)
+  --set, -s        file with values to add to all records
+                   (tsv with lines: column_name <TAB> value)
   --verbose, -v    be verbose
   --version, -V    show script version
   --help, -h       show this help message
 """
 import MySQLdb
 from docopt import docopt
-from schema import Schema, And, Use, Optional
-from dbschema.ncbi_taxonomy_db import tablename2class
+from schema import Schema, And, Or, Use, Optional
 import os
 
 def main(args):
@@ -34,9 +36,18 @@ def main(args):
                        use_unicode=True)
   cursor = db.cursor()
   query = "LOAD DATA LOCAL INFILE '{}' ".format(args["<tsv>"])
-  query += "REPLACE INTO TABLE {} (".format(args["<table>"])
+  query += args["--ignore"]
+  query += " INTO TABLE {} (".format(args["<table>"])
   query += ",".join(args["<columns>"])
-  query += ");"
+  query += ") "
+  if args["--set"]:
+    with open(args["--set"]) as f:
+      setelems = []
+      for line in f:
+        elems = line.rstrip().split("\t")
+        setelems.append(f"{elems[0]} = \"{elems[1]}\" ")
+      query += "SET "+", ".join(setelems)
+  query += ";"
   cursor.execute(query)
   cursor.close()
   db.commit()
@@ -49,6 +60,8 @@ def validated(args):
                    "<tsv>": And(str, open),
                    "<table>": And(str, len),
                    "<columns>": And(list, len),
+                   "--ignore": Use(lambda v: "IGNORE" if v else "REPLACE"),
+                   "--set": Or(None, open),
                    Optional(str): object})
   return schema.validate(args)
 
@@ -60,7 +73,9 @@ if "snakemake" in globals():
     "<dbsocket>": snakemake.input.socket,
     "<tsv>": snakemake.input.tsv,
     "<table>": snakemake.params.table,
-    "<columns>": snakemake.params.columns}
+    "<columns>": snakemake.params.columns,
+    "--ignore": snakemake.params.get("ignore", False),
+    "--set": snakemake.input.get("common_values", None)}
   main(validated(args))
 elif __name__ == "__main__":
   args = docopt(__doc__, version="0.1")

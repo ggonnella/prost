@@ -37,10 +37,11 @@ rule load_data:
     tsv=path.stats/"{statname}.{table}.tsv",
     socket=ancient(path.socket),
     done_create_tables=path.tables/"done.create_tables.stats",
-    done_computing=path.stats/"done.compute.{table}.{statname}"
+    done_computing=path.stats/"done.compute.{table}.{statname}",
+    common_values=srcdir("scripts/computestats/{statname}_from_fas_gz.desc.tsv")
   params:
     table="{table}",
-    columns=["accession", "statname", "value", "source"]
+    columns=["accession", "value"]
   output:
     temp(touch(path.stats/"done.load.{table}.{statname}"))
   script:
@@ -50,7 +51,7 @@ checkpoint compute_stat:
   input:
     ts_a=path.asmsummary/"assembly_summary_refseq_archaea.update_timestamp",
     ts_b=path.asmsummary/"assembly_summary_refseq_bacteria.update_timestamp",
-    module=srcdir("scripts/computestats/{stat}_from_fas.py")
+    module=srcdir("scripts/computestats/{stat}_from_fas_gz.py")
   params:
     skip=str(path.stats/"{stat}.{table}.tsv"),
     update=str(path.stats/"{stat}.{table}.tsv"),
@@ -58,4 +59,4 @@ checkpoint compute_stat:
   output:
     temp(touch(path.stats/"done.compute.{table}.{stat}"))
   script:
-    "scripts/genomestat_for_all_assemblies.py"
+    "scripts/genomestat_for_assembly_files.py"

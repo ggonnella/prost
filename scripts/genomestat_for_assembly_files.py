@@ -3,14 +3,11 @@
 Compute and output to TSV a stat for all assemblies.
 
 Usage:
-  genomestat_for_all_assemblies.py [options] <module> <globpattern>
+  genomestat_for_assembly_files.py [options] <module> <globpattern>
 
 Arguments:
-  module:       python module for the stat computation;
-                it should expose:
-                - function value(fn): computes the stat, given a filename
-                - attribute 'statname': string, name of the computed statistic
-                - attribute 'source': string, computation description
+  module:       python module for the stat computation with a function
+                value(fn), computing the stat, given a filename
   globpattern:  glob pattern of the directories containing the sequence files
 
 Options
@@ -43,15 +40,13 @@ def main(args):
         skip.add(line.rstrip().split("\t")[0])
   outfile = open(args["--update"], "a") if args["--update"] else sys.stdout
   files = glob(os.path.join(args["<globpattern>"], "*_genomic.fna.gz"))
-  statname = stat_comp.statname
-  source = stat_comp.source
   for fn in tqdm.tqdm(files):
     accession="_".join(fn.split("/")[-1].split("_")[:2])
     if accession in skip:
       skip.remove(accession)
     else:
       value = stat_comp.value(fn)
-      outfile.write("\t".join([accession, statname, value, source]) + "\n")
+      outfile.write("\t".join([accession, value]) + "\n")
   if args["--update"]: outfile.close()
 
 def validated(args):
