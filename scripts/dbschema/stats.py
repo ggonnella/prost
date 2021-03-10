@@ -52,3 +52,8 @@ class SingleFloatStat(Base):
   source = Column(String(512))
   __table_args__ = utf8_cs_args
 
+tablename2class = {
+  'single_int_stat': SingleIntStat,
+  'single_float_stat': SingleFloatStat,
+}
+
