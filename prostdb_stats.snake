@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+
+import os
+
+include: "common.snake"
+
+rule all:
+  input:
+    expand(path.stats/"done.compute_and_load.{table_stat}",
+        table_stat=["single_int_stat.genomelen",
+                    "single_float_stat.gcpercent"])
+
+def compute_and_load_input(w):
+  compute_flag=path.stats/f"done.compute.{w.table_stat}"
+  load_flag=path.stats/f"done.load.{w.table_stat}"
+  if os.path.exists(compute_flag):
+    return [compute_flag, load_flag]
+  else:
+    return [compute_flag]
+
+rule compute_and_load:
+  input: compute_and_load_input
+  output:
+    touch(path.stats/"done.compute_and_load.{table_stat}")
+
+rule create_tables:
+  input:
+    socket=ancient(path.socket),
+    schema=srcdir("scripts/dbschema/stats.py")
+  output:
+    touch(path.tables/"done.create_tables.stats")
+  script:
+    "scripts/db_create_tables.py"
+
+rule load_data:
+  input:
+    tsv=path.stats/"{statname}.{table}.tsv",
+    socket=ancient(path.socket),
+    done_create_tables=path.tables/"done.create_tables.stats",
+    done_computing=path.stats/"done.compute.{table}.{statname}"
+  params:
+    table="{table}",
+    columns=["accession", "statname", "value", "source"]
+  output:
+    temp(touch(path.stats/"done.load.{table}.{statname}"))
+  script:
+    "scripts/db_load_data.py"
+
+checkpoint compute_stat:
+  input:
+    ts_a=path.asmsummary/"assembly_summary_refseq_archaea.update_timestamp",
+    ts_b=path.asmsummary/"assembly_summary_refseq_bacteria.update_timestamp",
+    module=srcdir("scripts/computestats/{stat}_from_fas.py")
+  params:
+    skip=str(path.stats/"{stat}.{table}.tsv"),
+    update=str(path.stats/"{stat}.{table}.tsv"),
+    globpattern=path.genomeseq/"*"/"chunk.*"
+  output:
+    temp(touch(path.stats/"done.compute.{table}.{stat}"))
+  script:
+    "scripts/genomestat_for_all_assemblies.py"
