@@ -61,8 +61,8 @@ def main(args):
   values = session.query(klass.value).\
       filter(klass.statname == args["<statname>"]).\
       filter(klass.accession.in_(accessions)).all()
-  values = [v[0] for v in values]
-  print(values)
+  for v in values:
+    print(v[0])
 
 def validated(args):
   schema = Schema({"<dbuser>": And(str, len),
