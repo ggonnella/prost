@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """
-Compute and output to TSV the genome length for all assemblies.
+Compute and output to TSV a stat for all assemblies.
 
 Usage:
-  compute_and_output_genomelen.py [options] <globpattern>
+  genomestat_for_all_assemblies.py [options] <module> <globpattern>
 
 Arguments:
+  module:       python module for the stat computation;
+                it should expose:
+                - function value(fn): computes the stat, given a filename
+                - attribute 'statname': string, name of the computed statistic
+                - attribute 'source': string, computation description
   globpattern:  glob pattern of the directories containing the sequence files
 
 Options
@@ -25,8 +30,12 @@ import sh
 import tqdm
 from glob import glob
 import sys
+import importlib
 
 def main(args):
+  spec = importlib.util.spec_from_file_location("stat_comp", args["<module>"])
+  stat_comp = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(stat_comp)
   skip = set()
   if args["--skip"] and os.path.exists(args["--skip"]):
     with open(args["--skip"]) as f:
@@ -34,17 +43,15 @@ def main(args):
         skip.add(line.rstrip().split("\t")[0])
   outfile = open(args["--update"], "a") if args["--update"] else sys.stdout
   files = glob(os.path.join(args["<globpattern>"], "*_genomic.fna.gz"))
-  statname = "genome_length"
-  source = "computed from genomic.fas.gz; obtained by FTP from NCBI Refseq"
+  statname = stat_comp.statname
+  source = stat_comp.source
   for fn in tqdm.tqdm(files):
     accession="_".join(fn.split("/")[-1].split("_")[:2])
     if accession in skip:
       skip.remove(accession)
     else:
-      value = sh.wc(sh.tr(sh.grep(sh.zcat(fn, _piped=True), ">", v=True,
-        _piped=True), d="[:space:]", _piped=True), c=True)
-      outfile.write("\t".join([accession, statname,
-                               str(value).rstrip(), source]) + "\n")
+      value = stat_comp.value(fn)
+      outfile.write("\t".join([accession, statname, value, source]) + "\n")
   if args["--update"]: outfile.close()
 
 def validated(args):
@@ -53,6 +60,7 @@ def validated(args):
 
 if "snakemake" in globals():
   args = {
+    "<module>": snakemake.input.module,
     "<globpattern>": snakemake.params.globpattern,
     "--skip": snakemake.params.get("skip", None),
     "--update": snakemake.params.get("update", None)}

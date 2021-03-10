@@ -34,7 +34,7 @@ def main(args):
                        use_unicode=True)
   cursor = db.cursor()
   query = "LOAD DATA LOCAL INFILE '{}' ".format(args["<tsv>"])
-  query += "INTO TABLE {} (".format(args["<table>"])
+  query += "REPLACE INTO TABLE {} (".format(args["<table>"])
   query += ",".join(args["<columns>"])
   query += ");"
   cursor.execute(query)
