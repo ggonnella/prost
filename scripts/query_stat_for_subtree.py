@@ -30,21 +30,23 @@ from schema import Schema, And, Use, Or, Optional
 import os
 from sqlalchemy.orm import sessionmaker, aliased
 
-def main(args):
-  connstr = "".join(["mysql+mysqldb://", args["<dbuser>"],
-                     ":", args["<dbpass>"], "@localhost/",
-                     args["<dbname>"], "?unix_socket=",
-                     args["<dbsocket>"]])
-  engine = create_engine(connstr, echo=True)
-  Session = sessionmaker(bind=engine)
-  session = Session()
+def traverse_up(session, node, levels):
+  """
+  Return the taxid of the root of the subtree
+  by traversing up <levels> levels from node <node>
+  """
+  while levels:
+    levels -= 1
+    node = session.query(NtNode.parent_tax_id).\
+        filter(NtNode.tax_id==node).one()[0]
+  return node
+
+def subtree_taxids(session, node):
+  """
+  Return the taxid of all nodes under the given <node>
+  """
   subtree = session.query(NtNode)
-  root=args["<root>"]
-  while args["--up"]:
-    args["--up"] -= 1
-    root = session.query(NtNode.parent_tax_id).\
-        filter(NtNode.tax_id==root).one()[0]
-  subtree = subtree.filter(NtNode.tax_id==root)
+  subtree = subtree.filter(NtNode.tax_id==node)
   subtree = subtree.cte(name="subtree", recursive=True)
   parent = aliased(subtree, name="parent")
   children = aliased(NtNode, name="children")
@@ -52,17 +54,45 @@ def main(args):
       session.query(children).\
           filter(children.parent_tax_id == parent.c.tax_id))
   ids = session.query(NtNode.tax_id).select_entity_from(subtree).all()
-  ids = [i[0] for i in ids]
+  return [i[0] for i in ids]
+
+def accessions_for_taxids(session, taxids):
+  """
+  Return the Refseq accessions of complete genomes for a list of taxids
+  """
   accessions = session.query(NcbiAssemblySummary.accession).\
-      filter(NcbiAssemblySummary.taxid.in_(ids)).\
-      filter(NcbiAssemblySummary.seqdb == "refseq").all()
-  accessions = [a[0] for a in accessions]
-  klass = tablename2class[args["<table>"]]
+      filter(NcbiAssemblySummary.taxid.in_(taxids)).\
+      filter(NcbiAssemblySummary.seqdb == "refseq").\
+      filter(NcbiAssemblySummary.assembly_level == "Complete Genome").all()
+  return [a[0] for a in accessions]
+
+def values_for_accessions(session, accessions, statname, table):
+  """
+  Return all available values of a stat, given a list of accessions
+  """
+  klass = tablename2class[table]
   values = session.query(klass.value).\
-      filter(klass.statname == args["<statname>"]).\
+      filter(klass.statname == statname).\
       filter(klass.accession.in_(accessions)).all()
-  for v in values:
-    print(v[0])
+  return [v[0] for v in values]
+
+def get_session(args):
+  connstr = "".join(["mysql+mysqldb://", args["<dbuser>"],
+                     ":", args["<dbpass>"], "@localhost/",
+                     args["<dbname>"], "?unix_socket=",
+                     args["<dbsocket>"]])
+  engine = create_engine(connstr)
+  return sessionmaker(bind=engine)()
+
+def main(args):
+  session = get_session(args)
+  root = traverse_up(session, args["<root>"], args["--up"])
+  taxids = subtree_taxids(session, root)
+  accessions = accessions_for_taxids(session, taxids)
+  values = values_for_accessions(session, accessions, args["<statname>"],
+                                 args["<table>"])
+  for value in values:
+    print(value)
 
 def validated(args):
   schema = Schema({"<dbuser>": And(str, len),

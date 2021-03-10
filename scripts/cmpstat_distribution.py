@@ -31,15 +31,13 @@ def values_from_listfile(f):
   else:      result += [float(line.rstrip()) for line in f]
   return result
 
-def main(args):
-  values = values_from_listfile(args["<listfn>"])
-  value = args["<value>"]
-  d = scipy.stats.describe(values)
-  stdev = scipy.stats.tstd(values)
+def cmp_to_distri(value, distri):
+  d = scipy.stats.describe(distri)
+  stdev = scipy.stats.tstd(distri)
   zscoremin = (d.minmax[0]-d.mean)/stdev
   zscoremax = (d.minmax[1]-d.mean)/stdev
   zscore = (value-d.mean)/stdev
-  percentile = scipy.stats.percentileofscore(values, value)
+  percentile = scipy.stats.percentileofscore(distri, value)
   print(f"Description of the group of values:")
   print(f"  Number of values in the group: {d.nobs}")
   print(f"  Range (min/avg/max): {d.minmax[0]}--{d.mean}--{d.minmax[1]}")
@@ -89,6 +87,10 @@ def main(args):
   print(f"Interest level: {interest}")
   print(f"Fact: {fact}")
 
+def main(args):
+  values = values_from_listfile(args["<listfn>"])
+  value = args["<value>"]
+  cmp_to_distri(value, values)
 
 def validated(args):
   schema = Schema({

@@ -20,11 +20,14 @@ from docopt import docopt
 from schema import Schema, Or, Optional
 import importlib
 
-def main(args):
-  spec = importlib.util.spec_from_file_location("stat_comp", args["<module>"])
+def compute_value(modulename, genomefn):
+  spec = importlib.util.spec_from_file_location("stat_comp", modulename)
   stat_comp = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(stat_comp)
-  print(stat_comp.value(args["<genome>"]))
+  return stat_comp.value(genomefn)
+
+def main(args):
+  print(compute_value(args["<module>"], args["<genome>"]))
 
 def validated(args):
   schema = Schema({Optional(str): object})

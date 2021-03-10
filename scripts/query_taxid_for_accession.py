@@ -30,7 +30,7 @@ def main(args):
                      ":", args["<dbpass>"], "@localhost/",
                      args["<dbname>"], "?unix_socket=",
                      args["<dbsocket>"]])
-  engine = create_engine(connstr, echo=True)
+  engine = create_engine(connstr)
   Session = sessionmaker(bind=engine)
   session = Session()
   taxid = session.query(NcbiAssemblySummary.taxid).\
