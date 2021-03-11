@@ -78,7 +78,7 @@ To update all data (except Bacdive) run the following:
 snakemake -j -s download_genome_sequences.snake
 snakemake -j -s compute_accession_tables.snake
 snakemake -j -s prostdb.snake
-snakemake -j -s prostdb_assembly_summaries.snake
+snakemake -j -s prostdb_assembly_summary.snake
 snakemake -j -s download_ncbi_taxonomy.snake
 snakemake -j -s prostdb_ncbi_taxonomy.snake
 ```

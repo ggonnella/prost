@@ -4,23 +4,15 @@ include: "common.snake"
 
 rule all:
   input:
-    path.tables/"done.index.ncbi_taxonomy"
+    path.tables/"done.load.ncbi_taxonomy"
 
-rule insert_all:
+rule load_all:
   input:
-    expand(path.tables/"done.insert.ncbi_taxonomy.{table}",
+    expand(path.tables/"done.load.ncbi_taxonomy.{table}",
         table=["names", "nodes", "gencode", "division",
                "merged", "delnodes", "citations"]),
   output:
-    done=touch(path.tables/"done.insert.ncbi_taxonomy")
-
-rule index_all:
-  input:
-    rules.insert_all.output.done,
-    expand(path.tables/"done.index.ncbi_taxonomy.{table}",
-        table=["names", "nodes", "merged"])
-  output:
-    done=touch(path.tables/"done.index.ncbi_taxonomy")
+    done=touch(path.tables/"done.load.ncbi_taxonomy")
 
 rule create_table:
   input:
@@ -34,30 +26,24 @@ rule create_table:
     done=touch(path.tables/"done.create_tables.ncbi_taxonomy.{table}")
   script: "scripts/db_create_tables.py"
 
-rule insert:
+rule load_data:
   input:
-    path.tables/"done.create_tables.ncbi_taxonomy.{table}",
+    tsv=path.tax/"{table}.dmp",
     socket=ancient(path.socket),
-    dump=path.tax/"{table}.dmp"
+    done_create_tables=path.tables/"done.create_tables.ncbi_taxonomy.{table}"
   params:
     table="nt_{table}",
+    dbschema=srcdir("scripts/dbschema/ncbi_taxonomy_db.py"),
+    ncbidmp=True,
+    ignore=True,
+    dropkeys=True
   output:
-    done=touch(path.tables/"done.insert.ncbi_taxonomy.{table}")
-  script: "scripts/ncbi_taxonomy_db_bulk_insert.py"
-
-rule index_table:
-  input:
-    path.tables/"done.insert.ncbi_taxonomy.{table}",
-    socket=ancient(path.socket)
-  params:
-    table="nt_{table}"
-  output:
-    done=touch(path.tables/"done.index.ncbi_taxonomy.{table}")
-  script: "scripts/ncbi_taxonomy_db_create_indices.py"
+    done=temp(touch(path.tables/"done.load.ncbi_taxonomy.{table}"))
+  script: "scripts/db_load_data.py"
 
 rule get_subtree:
   input:
-    rules.index_all.output.done,
+    rules.create_table.output.done,
     socket=ancient(path.socket)
   params:
     root=config.get("root")
