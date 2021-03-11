@@ -10,6 +10,17 @@ use phenotype-based groups:
 => bacdive
 => other?
 
-separate bacdive from the rest
-
 statistics which are not single per genome?
+
+bacdive:
+=> Use count in /api/bacdive/bacdive_id to
+   check if there is new data
+   => in this case, reload all lists
+      and check if there are new IDs
+      => sometimes reload all information,
+         but this must be done explicitely
+         since it's very slow
+
+PNU
+
+https://mariadb.com/kb/en/how-to-quickly-insert-data-into-mariadb/
