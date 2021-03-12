@@ -83,7 +83,8 @@ rule update_summaries:
 
 ext_for_filetype = {
     "seq": "genomic.fna.gz",
-    "ftab": "feature_table.txt.gz"
+    "ftab": "feature_table.txt.gz",
+    "gff": "genomic.gff.gz"
   }
 
 rule update_all_sequences:
