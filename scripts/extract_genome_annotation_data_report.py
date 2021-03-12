@@ -17,7 +17,7 @@ Options:
 
 from docopt import docopt
 from schema import Schema, Use, Optional, Or, And
-import sys
+from lib import valid
 
 def main(args):
   state = 0
@@ -36,7 +36,7 @@ def main(args):
       exit(0)
 
 def validated(args):
-  schema = Schema({"<file>": Or(And(None, Use(lambda f: sys.stdin)), Use(open)),
+  schema = Schema({"<file>": valid.open_maygz_or_stdin,
                    "--one": Or(None, bool),
                    Optional(str): object})
   return schema.validate(args)
