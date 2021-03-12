@@ -47,7 +47,7 @@ Automatically checks for updates (i.e. for new complete genomes)
 from NCBI and downloads them.
 
 ```
-snakemake -j -s update_genome_sequences.snake
+snakemake -j -s download_ncbi_assemblies.snake
 ```
 
 ### Accession tables
@@ -75,7 +75,7 @@ snakemake -j -s download_bacdive.snake -f all
 
 To update all data (except Bacdive) run the following:
 ```
-snakemake -j -s download_genome_sequences.snake
+snakemake -j -s download_ncbi_assemblies.snake
 snakemake -j -s compute_accession_tables.snake
 snakemake -j -s prostdb.snake
 snakemake -j -s prostdb_assembly_summary.snake

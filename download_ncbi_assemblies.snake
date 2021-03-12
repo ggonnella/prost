@@ -1,0 +1,293 @@
+#!/usr/bin/env python3
+from glob import glob
+import os
+import shutil
+import re
+import sh
+
+include: "common.snake"
+
+DBs = ["refseq", "genbank"]
+Domains = ["bacteria", "archaea"]
+
+#
+# the update strategy of the summaries is the same as in
+# download_ncbi_taxonomy.snake
+#
+# if the summaries are new, an update of the sequences if triggered;
+# this only downloads new sequences; it is robust for the case of
+# errors / broken downloads
+#
+
+def all_targets(wildcards):
+  summaries_updated=path.asmsummary/"update_summaries.done"
+  if os.path.exists(summaries_updated):
+    return [summaries_updated, path.asmsummary/"update_sequences.done"]
+  else:
+    return [summaries_updated]
+
+rule all:
+  input: all_targets
+  shell:
+    """
+    rm {input[0]}
+    """
+
+checkpoint update_all_summaries:
+  input:
+    expand(path.asmsummary/"update_summaries.{db}.{domain}.done",
+      db=DBs, domain=Domains)
+  output:
+    touch(path.asmsummary/"update_summaries.done")
+
+rule prepare_update_summaries:
+  params:
+    possible_input=str(path.asmsummary/"assembly_summary_{db}_{domain}.txt")
+  output:
+    current=path.asmsummary/"current_assembly_summary_{db}_{domain}.txt"
+  shell:
+    """
+    if [ -e {params.possible_input} ]; then
+      mv {params.possible_input} {output.current}
+    else
+      touch {output.current}
+    fi
+    """
+
+rule update_summaries:
+  input:
+    to_update=path.asmsummary/"current_assembly_summary_{db}_{domain}.txt"
+  output:
+    done=temp(touch(\
+      path.asmsummary/"update_summaries.{db}.{domain}.done")),
+    updated=path.asmsummary/"assembly_summary_{db}_{domain}.txt"
+  params:
+    remote="ftp://ftp.ncbi.nlm.nih.gov/genomes/{db}/{domain}/"+\
+           "assembly_summary.txt",
+    timestamp=str(path.asmsummary/
+        "assembly_summary_{db}_{domain}.update_timestamp")
+  shell:
+    """
+    if [ -e {params.timestamp} ]; then
+      curl -o {output.updated} -z {params.timestamp} {params.remote}
+    else
+      curl -o {output.updated} {params.remote}
+    fi
+    if [ -e {output.updated} ]; then
+      rm {input.to_update}
+      touch {params.timestamp}
+    else
+      mv {input.to_update} {output.updated}
+    fi
+    """
+
+ext_for_filetype = {
+    "seq": "genomic.fna.gz",
+    "ftab": "feature_table.txt.gz"
+  }
+
+rule update_all_sequences:
+  input:
+    expand(path.asmsummary/"update_sequences.refseq.{domain}.{filetype}.done",
+           domain=Domains, filetype=ext_for_filetype.keys())
+  output:
+    temp(touch(path.asmsummary/"update_sequences.done"))
+
+rule update_sequences:
+  input:
+    path.asmsummary/"assembly_summary_refseq_{domain}.update_timestamp",
+    path.asmsummary/"complete_genomes_refseq_{domain}.{filetype}.new.done",
+    path.asmsummary/"complete_genomes_refseq_{domain}.{filetype}.obsolete.done"
+  output:
+    temp(touch(path.asmsummary/"update_sequences.refseq.{domain}.{filetype}.done"))
+
+rule select_complete_genomes_for_domain:
+  input:
+    ts=path.asmsummary/"assembly_summary_{db}_{domain}.update_timestamp",
+    sm=ancient(path.asmsummary/"assembly_summary_{db}_{domain}.txt")
+  output:
+    selected=path.asmsummary/"complete_genomes_summary_{db}_{domain}.txt"
+  run:
+    o_f = open(output.selected, "w")
+    with open(input.sm) as f:
+      for line in f:
+        if line[0] == "#":
+          o_f.write(line)
+        else:
+          elems = line.rstrip().split("\t")
+          if elems[10] == "latest" and \
+             elems[11] == "Complete Genome" and \
+             elems[19] != "na":
+            o_f.write(line)
+    o_f.close()
+
+
+def replace_url_scheme(url, scheme):
+  return ":".join([scheme, url.split(":", 1)[1]])
+
+rule create_updating_plan:
+  input:
+    path.asmsummary/"complete_genomes_summary_refseq_{domain}.txt"
+  params:
+    chunkspfx=str(path.genomes/"{filetype}/{domain}/chunk.")
+  output:
+    new=temp(path.asmsummary/"complete_genomes_refseq_{domain}.{filetype}.new"),
+    obs=temp(path.asmsummary/"complete_genomes_refseq_{domain}.{filetype}.obsolete"),
+    rep=report("updating_plan.report_{domain}.{filetype}.tsv")
+  run:
+    ext = ext_for_filetype[wildcards.filetype]
+    filenames=set(os.path.basename(fn) for fn in \
+        glob(params.chunkspfx+"*/*_"+ext))
+    out_new = open(output.new, "w")
+    out_obs = open(output.obs, "w")
+    n_new = 0
+    n_obs = 0
+    with open(input[0]) as f:
+      for line in f:
+        if line[0] == "#": continue
+        elems = line.rstrip().split("\t")
+        fn = elems[19].split("/")[-1] + "_" + ext
+        if fn in filenames:
+          filenames.remove(fn)
+        else:
+          rpath = replace_url_scheme(elems[19], "https")
+          out_new.write(os.path.join(rpath, fn)+"\n")
+          n_new += 1
+      for fn in filenames:
+        out_obs.write(fn+"\n")
+        n_obs += 1
+    out_new.close()
+    out_obs.close()
+    with open(output.rep, "w") as f:
+      f.write(f"n_new\t{n_new}\n")
+      f.write(f"n_obsolete\t{n_obs}\n")
+
+rule move_obsolete_genomes:
+  input:
+    path.asmsummary/"complete_genomes_refseq_{domain}.{filetype}.obsolete"
+  output:
+    temp(touch(path.asmsummary/"complete_genomes_refseq_{domain}.{filetype}.obsolete.done"))
+  params:
+    chunkspfx=str(path.genomes/"{filetype}/{domain}/chunk."),
+    obsmaindir=str(path.genomes/"{filetype}/{domain}/obsolete")
+  run:
+    with open(input[0]) as f:
+      for line in f:
+        fn = line.rstrip()
+        srcfile = glob(params.chunkspfx+"*/"+fn)[0]
+        # check if file exists: it may not, if the workflow
+        # was previously interrupted by an error
+        if os.path.exists(srcfile):
+          chunknum = os.path.dirname(srcfile).split("/")[-1].split(".")[1]
+          obsdir = params.obsmaindir+("/chunk."+chunknum)
+          os.makedirs(obsdir, exist_ok=True)
+          shutil.move(srcfile, obsdir)
+
+def analyse_last_chunkdir(chunkspfx):
+  """
+  Given a set of directories whose name is <chunkspfx> + chunknum (an integer),
+  return the highest existing chunknum and the numbers of entries in the
+  corresponding directory. If no such directories exist, return (0, 0).
+  """
+  chunknums = [int(os.path.splitext(x)[1][1:]) for x in glob(chunkspfx+"*")]
+  if len(chunknums) == 0:
+    return 0, 0
+  else:
+    chunknum = max(chunknums)
+    return chunknum, len(glob(chunkspfx+str(chunknum)+"/*"))
+
+def get_available_chunk(chunkspfx, chunkmaxsize):
+  """
+  Given a set of directories whose name is <chunkspfx> + chunknum (an integer),
+  return the next available chunk and the number of entries available in it,
+  so that it reaches <chunkmaxsize> entries.
+
+  The next available chunk is:
+  - 0 if no chunk directory exists yet
+  - the highest chunknum if the directory with the highest chunknum does
+    not have yet at least <chunkmaxsize> entries
+  - one more than the highest chunknum otherwise
+  """
+  chunknum, n_entries = analyse_last_chunkdir(chunkspfx)
+  available = chunkmaxsize - n_entries
+  if available <= 0: # it may be <0 if maxchunksize changed
+    return chunknum + 1, chunkmaxsize
+  else:
+    return chunknum, available
+
+def chunk_file(wholefile, chunkfilepfx, chunksize,
+               firstchunknum=0, firstchunksize=None):
+  """
+  Divide a file in chunks of size <chunksize> lines, except the last chunk
+  containing the remainder (which can be smaller than <chunksize>).
+
+  If <firstchunksize> is set, then first a chunk is created containing
+  this amount of lines, then the remainder is divided as described above.
+
+  The name of the resulting lists is: <chunkfilepfx> + chunknum.
+  The chunknum is an integer starting from <firstchunknum> (default: 0).
+  """
+  chunknum = firstchunknum
+  available = firstchunksize if firstchunksize is not None else chunksize
+  urlsfile = open(chunkfilepfx+str(chunknum), "w")
+  with open(wholefile) as f:
+    for line in f:
+      if available == 0:
+        chunknum += 1
+        urlsfile = open(chunkfilepfx+str(chunknum), "w")
+        available = chunksize
+      urlsfile.write(line)
+      available -= 1
+  return chunknum
+
+#
+# since some OS have a problem with directories containing too many files,
+# the downloaded files are stored in chunks of at most <chunkmaxsize> files
+#
+rule download_new_genomes:
+  input:
+    path.asmsummary/"complete_genomes_refseq_{domain}.{filetype}.new"
+  output:
+    temp(touch(path.asmsummary/"complete_genomes_refseq_{domain}.{filetype}.new.done"))
+  params:
+    downloadtmp=str(path.genomes/"{filetype}/{domain}/wip"),
+    chunkspfx=str(path.genomes/"{filetype}/{domain}/chunk."),
+    chunkmaxsize=500
+  run:
+    os.makedirs(params.downloadtmp, exist_ok=True)
+    if os.stat(input[0]).st_size > 0:
+      firstchunknum, firstavailable = get_available_chunk(params.chunkspfx,
+                                                          params.chunkmaxsize)
+      chunklistpfx = os.path.join(params.downloadtmp, "list.chunk.")
+      tmpchunkpfx = os.path.join(params.downloadtmp, "chunk.")
+      lastchunknum = chunk_file(input[0], chunklistpfx, params.chunkmaxsize,
+                                firstchunknum, firstavailable)
+      for chunknum in range(firstchunknum, lastchunknum+1):
+        tmplist = chunklistpfx + str(chunknum)
+        tmpdir = tmpchunkpfx + str(chunknum)
+        chunkdir = params.chunkspfx+str(chunknum)
+        sh.wget(i=tmplist,no_directories=True,no_clobber=True,P=tmpdir,_fg=True)
+        # if the file are gzipped check them:
+        for fn in glob(os.path.join(tmpdir, "*.gz")):
+          sh.gzip(fn, t=True)
+        if os.path.exists(chunkdir):
+          for fn in glob(os.path.join(tmpdir, "*")):
+            sh.mv(fn, chunkdir)
+          shutil.rmtree(tmpdir, ignore_errors=True)
+        else:
+          sh.mv(tmpdir, chunkdir)
+        print(f"Chunk {chunkdir} of {lastchunknum} downloaded")
+    shutil.rmtree(params.downloadtmp, ignore_errors=True)
+
+rule check_downloaded_files:
+  params:
+    files=str(path.genomes/"seq"/"*"/"chunk.*"/"*.fna.gz")
+  shell:
+    """
+    for file in {params.files}; do
+      if ! gzip -v -t $file; then
+        rm $file
+        echo "removed invalid file: $file"
+      fi
+    done
+    """
