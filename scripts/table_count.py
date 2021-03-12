@@ -23,6 +23,7 @@ Options:
   --fields, -f NAMES   comma-separated list of field names
                        default: from first line containing the delimiter
                                 (after removing the comment pfx, if any)
+  --check              run module check() function on each row
   --verbose, -v        be verbose
   --version, -V        show script version
   --help, -h           show this help message
@@ -36,11 +37,13 @@ from lib import snake, valid, tables, mod
 
 def main(args):
   counts = defaultdict(int)
-  counters = mod.importer(args["<module>"], args["--verbose"]).counters
+  m = mod.importer(args["<module>"], args["--verbose"])
   for row in tables.get_dict_reader(args, args["<table>"]):
-    for k, v in counters.items():
+    for k, v in m.counters.items():
       if v(row): counts[k] += 1
-  for k in counters.keys():
+    if args["--check"]:
+      m.check(row)
+  for k in m.counters.keys():
     print(f"{k}{args['--delimiter']}{counts[k]}")
 
 def validated(args):
@@ -49,13 +52,14 @@ def validated(args):
                    "--verbose": Or(None, bool),
                    "--comments": valid.comments,
                    "--delimiter": valid.delimiter,
+                   "--check": Or(None, bool),
                    Optional(str): object})
   return schema.validate(args)
 
 if "snakemake" in globals():
   args = snake.args(snakemake,
         input=["<table>", "<module>"],
-        params=["--verbose", "--fields", "--comments", "--delimiter"]
+        params=["--verbose", "--fields", "--comments", "--delimiter", "--check"]
       )
   main(validated(args))
 elif __name__ == "__main__":
