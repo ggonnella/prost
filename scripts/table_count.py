@@ -29,87 +29,33 @@ Options:
 
 from docopt import docopt
 from schema import Schema, Use, Optional, Or, And
-import sys
 from collections import defaultdict
-import importlib
-from pathlib import Path
 import os
-import csv
-
-def import_mod(filename, verbose=False):
-  modulename = Path(filename).stem
-  spec = importlib.util.spec_from_file_location(modulename, filename)
-  m = importlib.util.module_from_spec(spec)
-  spec.loader.exec_module(m)
-  if verbose:
-    sys.stderr.write(f"# module {modulename} imported from file {filename}\n")
-  return m
-
-def decomment(f, pfx, verbose=False):
-  for line in f:
-    if not pfx or not line.startswith(pfx):
-      yield line
-    elif verbose:
-      sys.stderr.write("# skipped internal comment line: "+line)
-
-def get_fieldnames(fieldslist, delimiter, commentspfx, verbose, f):
-  if fieldslist:
-    fieldnames=fieldslist.split(",")
-  else:
-    line = f.readline()
-    while delimiter not in line:
-      if verbose:
-        sys.stderr.write("# skipped initial comment line: "+line)
-      line = f.readline()
-    if line.startswith(commentspfx):
-      line = line[len(commentspfx):]
-    fieldnames = [x.strip() for x in line.split(delimiter)]
-  if verbose:
-    sys.stderr.write("# table field names: "+", ".join(fieldnames)+"\n")
-  return fieldnames
+from lib import snake, valid, tables, mod
 
 def main(args):
   counts = defaultdict(int)
-  counters = import_mod(args["<module>"], args["--verbose"]).counters
-  fieldnames = get_fieldnames(args["--fields"], args["--delimiter"],
-                              args["--comments"], args["--verbose"],
-                              args["<table>"])
-  dictreader = csv.DictReader(decomment(args["<table>"], args["--comments"],
-                                        args["--verbose"]),
-                            delimiter=args["--delimiter"],
-                            fieldnames=fieldnames,
-                            quoting=csv.QUOTE_NONE)
-  for row in dictreader:
+  counters = mod.importer(args["<module>"], args["--verbose"]).counters
+  for row in tables.get_dict_reader(args, args["<table>"]):
     for k, v in counters.items():
       if v(row): counts[k] += 1
   for k in counters.keys():
     print(f"{k}{args['--delimiter']}{counts[k]}")
 
 def validated(args):
-  schema = Schema({"<table>": Or(And(None, Use(lambda v: sys.stdin)), Use(open)),
+  schema = Schema({"<table>": valid.open_file_or_stdin,
                    "<module>": os.path.exists,
                    "--verbose": Or(None, bool),
-                   "--comments": Or(And(None, Use(lambda v: "#")), str),
-                   "--delimiter": Or(And(None, Use(lambda v: "\t")), And(str, len)),
+                   "--comments": valid.comments,
+                   "--delimiter": valid.delimiter,
                    Optional(str): object})
   return schema.validate(args)
 
-def args_from_snakemake(args, attr, *names):
-  for name in names:
-    if name.startswith("--"):
-      sname = name[2:]
-    else:
-      assert(name[0]=="<")
-      assert(name[-1]==">")
-      sname = name[1:-1]
-    sname = sname.replace("-","_")
-    args[name] = getattr(snakemake, attr).get(sname)
-
 if "snakemake" in globals():
-  args = {}
-  args_from_snakemake(args, "input", "<table>", "<module>")
-  args_from_snakemake(args, "params", "--verbose", "--fields",
-                            "--comments", "--delimiter")
+  args = snake.args(snakemake,
+        input=["<table>", "<module>"],
+        params=["--verbose", "--fields", "--comments", "--delimiter"]
+      )
   main(validated(args))
 elif __name__ == "__main__":
   args = docopt(__doc__, version="0.1")
