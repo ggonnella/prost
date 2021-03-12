@@ -7,6 +7,7 @@ Usage:
 
 Arguments:
   table:  tabular file (standard input if none provided)
+          either a text file or gzip-compressed
   module: python module, providing a dictionary "counters"
           keys:   string
           values: callable(row_dictionary) => bool
@@ -43,7 +44,7 @@ def main(args):
     print(f"{k}{args['--delimiter']}{counts[k]}")
 
 def validated(args):
-  schema = Schema({"<table>": valid.open_file_or_stdin,
+  schema = Schema({"<table>": valid.open_maygz_or_stdin,
                    "<module>": os.path.exists,
                    "--verbose": Or(None, bool),
                    "--comments": valid.comments,

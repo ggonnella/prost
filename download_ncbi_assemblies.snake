@@ -269,7 +269,12 @@ rule download_new_genomes:
         sh.wget(i=tmplist,no_directories=True,no_clobber=True,P=tmpdir,_fg=True)
         # if the file are gzipped check them:
         for fn in glob(os.path.join(tmpdir, "*.gz")):
-          sh.gzip(fn, t=True)
+          try:
+            sh.gzip(fn, t=True)
+          except:
+            print(f"ERROR! Removing corrupted file {fn}")
+            print("Re-run the workflow to download it again")
+            sh.rm(fn)
         if os.path.exists(chunkdir):
           for fn in glob(os.path.join(tmpdir, "*")):
             sh.mv(fn, chunkdir)
