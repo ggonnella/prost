@@ -3,8 +3,9 @@
 Count different types of features from a feature table
 """
 
-count_functions = {
+counters = {
     "protein_coding_genes":
-        lambda elems: elems[0] == "CDS" and elems[1] == "with_protein"
+        lambda r: r["feature"] == "CDS" and \
+                  r["class"]   == "with_protein"
     }
 
