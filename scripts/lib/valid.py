@@ -11,10 +11,15 @@ def open_maygz(fname):
     ft.close()
     return open(fname)
 
-open_file_or_stdin = Or(And(None, Use(lambda v: sys.stdin)), Use(open))
+infile_or_stdin = Or(And(None, Use(lambda v: sys.stdin)), Use(open))
 
-open_maygz_or_stdin = Or(And(None, Use(lambda v: sys.stdin)),
-                         Use(open_maygz))
+maygz_or_stdin = Or(And(None, Use(lambda v: sys.stdin)),
+                       Use(open_maygz))
+
+outfile_or_stdout = Or(And(None, Use(lambda f: sys.stdout)),
+                    Use(lambda f: open(f, "w")))
+
+outfile_or_none = Or(None, Use(lambda f: open(f, "w")))
 
 comments = Or(And(None, Use(lambda v: "#")), str)
 delimiter = Or(And(None, Use(lambda v: "\t")), And(str, len))

@@ -36,7 +36,7 @@ def main(args):
       exit(0)
 
 def validated(args):
-  schema = Schema({"<file>": valid.open_maygz_or_stdin,
+  schema = Schema({"<file>": valid.maygz_or_stdin,
                    "--one": Or(None, bool),
                    Optional(str): object})
   return schema.validate(args)

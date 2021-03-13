@@ -47,7 +47,7 @@ def main(args):
     print(f"{k}{args['--delimiter']}{counts[k]}")
 
 def validated(args):
-  schema = Schema({"<table>": valid.open_maygz_or_stdin,
+  schema = Schema({"<table>": valid.maygz_or_stdin,
                    "<module>": os.path.exists,
                    "--verbose": Or(None, bool),
                    "--comments": valid.comments,
