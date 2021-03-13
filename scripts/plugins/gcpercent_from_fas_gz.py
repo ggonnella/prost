@@ -5,7 +5,7 @@ Compute GC percent from Fasta.
 
 import sh
 import os
-import nimporter, computestats.fas_stats as fas_stats
+import nimporter, plugins.fas_stats as fas_stats
 
 def value_wo_zip_library(fn):
   sh.gunzip(fn, k=True)

@@ -5,15 +5,17 @@ from a NCBI Refseq genome annotation GFF file.
 """
 
 from collections import defaultdict
+import gffutils
+import sys
 
-def process_gene_feature(db, gene, counters, info):
+def process_gene_feature(db, gene, counters, logs):
   children = list(db.children(gene.id, level=1))
   if len(children) == 0:
-    info["gene_with_no_children"].append(str(gene))
+    logs["gene_with_no_children"].append(str(gene))
     return
   child = children[0]
   if not all([child.featuretype == c.featuretype for c in children]):
-    info["gene_with_heterogeneous_children_type"].append(str(gene))
+    logs["gene_with_heterogeneous_children_type"].append(str(gene))
     return
   if child.featuretype == "CDS":
     counters["protein_coding_genes"] += 1
@@ -31,34 +33,36 @@ def process_gene_feature(db, gene, counters, info):
     elif product.startswith("23S"):
       counters["rRNA_23S"] += 1
     else:
-      info["rRNA_unknown"].append(str(child))
+      logs["rRNA_unknown"].append(str(child))
       assert(False)
   elif child.featuretype == "hammerhead_ribozyme":
     counters["hammerhead_ribozymes"] += 1
   else:
-    info["unexpected_gene_child_feature_type"].append(str(child))
+    logs["unexpected_gene_child_feature_type"].append(str(child))
 
-def analyze(db):
+def analyze(filename):
+  db = gffutils.create_db(filename, ":memory:",
+                          merge_strategy="create_unique")
   counters = defaultdict(int)
-  info = defaultdict(list)
+  logs = defaultdict(list)
   for ftr in db.all_features():
     if len(list(db.parents(ftr.id))) == 0:
       if ftr.featuretype == "gene":
-        process_gene_feature(db, ftr, counters, info)
+        process_gene_feature(db, ftr, counters, logs)
       elif ftr.featuretype == "pseudogene":
         counters["pseudogenes"] += 1
       elif ftr.featuretype == "region":
         counters["n_molecules"] += 1
       elif ftr.featuretype in ["sequence_feature"]:
-        info["generic_sequence_feature"].append(str(ftr))
+        logs["generic_sequence_feature"].append(str(ftr))
       elif ftr.featuretype == "riboswitch":
         counters["riboswitches"] += 1
       elif ftr.featuretype == "direct_repeat":
         if ftr.attributes["rpt_family"][0] == "CRISPR":
           counters["CRISPRs"] += 1
         else:
-          info["direct_repeat_not_CRISPR"].append(str(ftr))
+          logs["direct_repeat_not_CRISPR"].append(str(ftr))
       else:
-        info["top_level_feature_other_type"].append(str(ftr))
-  return counters, info
+        logs["top_level_feature_other_type"].append(str(ftr))
+  return counters, logs
 
