@@ -38,3 +38,25 @@ def get_fieldnames(args, f):
 def get_dict_reader(args, f):
   return get_dict_reader_for(get_fieldnames(args, f),
       args["--delimiter"], args["--comments"], args["--verbose"], f)
+
+def n_header_lines(filename: str, pfx: str = "#") -> int:
+  """Number of header lines, identified by a given prefix
+
+  Args:
+    filename: data of the table file
+    pfx:      header lines prefix, defaults to "#"
+
+  Returns:
+    0 if pfx is empty, otherwise number of initial lines starting with pfx
+  """
+  result = 0
+  if not pfx:
+    return 0
+  with open(filename) as f:
+    for line in f:
+      if line.startswith(pfx):
+        result += 1
+      else:
+        return result
+
+
