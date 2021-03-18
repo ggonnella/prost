@@ -1,6 +1,5 @@
 import importlib
-import tables
-from typing import Union, List
+from typing import Union, List, Dict, Any
 
 def _fixed_data_from_file(fixed_data_fn):
   result = {}
@@ -72,4 +71,25 @@ def load_data_sql(datafile: str, tablename: str, columns: Union[List[str], str],
     result.append(f"ALTER TABLE {tablename} ENABLE KEYS;")
   result.append("SET foreign_key_checks = 1;")
   return result
+
+def n_header_lines(filename: str, pfx: str = "#") -> int:
+  """Number of header lines, identified by a given prefix
+
+  Args:
+    filename: data of the table file
+    pfx:      header lines prefix, defaults to "#"
+
+  Returns:
+    0 if pfx is empty, otherwise number of initial lines starting with pfx
+  """
+  result = 0
+  if not pfx:
+    return 0
+  with open(filename) as f:
+    for line in f:
+      if line.startswith(pfx):
+        result += 1
+      else:
+        return result
+
 
