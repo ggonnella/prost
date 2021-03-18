@@ -18,6 +18,8 @@ maygz_or_stdin = Or(And(None, Use(lambda v: sys.stdin)),
 
 outfile_or_stdout = Or(And(None, Use(lambda f: sys.stdout)),
                     Use(lambda f: open(f, "w")))
+outfile_or_stderr = Or(And(None, Use(lambda f: sys.stderr)),
+                    Use(lambda f: open(f, "w")))
 
 outfile_or_none = Or(None, Use(lambda f: open(f, "w")))
 

@@ -19,13 +19,12 @@ utf8_cs_args = {'mysql_charset': 'utf8', 'mysql_collate': 'utf8_bin'}
 class Computation(Base):
   __tablename__ = 'computation'
   id = Column(Integer, primary_key=True, autoincrement=True)
-  plugin = Column(String(256), nullable=False)
-  version = Column(String(64), nullable=False)
+  plugin_id = Column(String(256), nullable=False)
+  plugin_version = Column(String(64), nullable=False)
   parameters = Column(Text(4096))
   unit = Column(Enum("assembly"), nullable=False, default="assembly")
   n_units = Column(Integer, nullable=False)
-  reason = Column(Enum("new_data", "new_attributes", "improve_precision"),
-                  nullable=False)
+  reason = Column(Enum("new_data", "new_attributes", "improve_precision"))
   comp_status = Column(Enum("running", "completed", "partial", "aborted"),
                   nullable=False, default="running")
   system_id = Column(String(64))
@@ -33,5 +32,6 @@ class Computation(Base):
   time_start = Column(DateTime)
   time_end = Column(DateTime)
   used_resources = Column(Text(4096))
+  remarks = Column(Text(4096))
   __table_args__ = utf8_cs_args
 
