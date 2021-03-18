@@ -17,19 +17,26 @@ def setargs(args, src, *names):
   and replacing internal "-" with underscores.
   If a key is not available, args[name] is set to None.
 
+  Alternatively instead of a string, a 2-tuple of strings
+  can be passed (name, key).
+
   E.g. setargs(args, snakemake.input, "<file>")
        => args["<file>"] = snakemake.input.get("file")
        setargs(args, snakemake.params, "--long-opt")
        => args["--long-opt"] = snakemake.params.get("long_opt")
   """
   for name in names:
-    if name.startswith("--"):
-      key = name[2:]
+    if isinstance(name, tuple):
+      key = name[1]
+      name = name[0]
     else:
-      assert(name[0]=="<")
-      assert(name[-1]==">")
-      key = name[1:-1]
-    key = key.replace("-","_")
+      if name.startswith("--"):
+        key = name[2:]
+      else:
+        assert(name[0]=="<")
+        assert(name[-1]==">")
+        key = name[1:-1]
+      key = key.replace("-","_")
     args[name] = src.get(key)
 
 def args(snakemake, **kwargs):
