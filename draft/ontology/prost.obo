@@ -1,0 +1,150 @@
+format-version: 1.4
+ontology: prost
+treat-xrefs-as-equivalent: SO
+treat-xrefs-as-equivalent: NCIT
+treat-xrefs-as-equivalent: EDAM_data
+remark: try to use as much as possible definitions from SO, NCIT, EDAM
+
+[Term]
+id: prokaryote
+xref: NCIT:C14263
+relationship: has_a genome
+
+[Typedef]
+id: has_a
+def: "B is an attribute of A of cardinality 1" []
+
+[Term]
+id: genome
+xref: SO:0001026
+relationship: set_of replicon
+
+[Typedef]
+id: set_of
+def: "A is a set of one or more instances of B" []
+
+[Term]
+id: nucleic_acid_molecule
+def: "A molecule of DNA or RNA" []
+
+[Term]
+id: nucleic_acid_sequence
+xref: EDAM_data:2977
+relationship: models nucleic_acid_molecule
+relationship: has_many sequence_attribute
+
+[Typedef]
+id: has_many
+def: "B is an attribute of A of any cardinality" []
+
+[Typedef]
+id: models
+def: "A is an abstraction and description of B" []
+
+[Term]
+id: replicon
+is_a: nucleic_acid_molecule
+xref: SO:0001235
+
+[Term]
+id: chromosome
+xref: SO:0000340
+is_a: replicon
+
+[Term]
+id: plasmid
+xref: SO:0000155
+is_a: replicon
+
+[Term]
+id: assembly
+relationship: set_of annotated_sequence
+relationship: models genome
+relationship: identified_by assembly_accession
+relationship: has_a assembly_level
+
+[Typedef]
+id: identified_by
+def: "A is uniquely and stably identified by B" []
+inverse_of: identifies
+
+[Typedef]
+id: identifies
+def: "A is an unique and stable identifier for B" []
+inverse_of: identified_by
+
+[Term]
+id: accession
+xref: EDAM_data:2091
+
+[Term]
+id: assembly_accession
+is_a: accession
+relationship: identifies assembly
+
+[Term]
+id: annotated_sequence
+is_a: nucleic_acid_sequence
+relationship: has_a sequence_annotation
+relationship: has_many annotation_count
+
+[Term]
+id: sequence_annotation
+relationship: set_of sequence_feature
+xref: EDAM_data:1255 ! Sequence features
+
+[Term]
+id: assembly_level
+def: "Describes completeness, redundancy and quality of an assembly." []
+comment: Equivalent to the levels defined by NCBI for assembly summary tables
+
+[Instance]
+id: complete_genome_level
+instance_of: assembly_level
+
+[Term]
+id: sequence_feature
+xref: SO:0000110
+
+[Term]
+id: sequence_attribute
+def: "A quantitative or qualitative information about a sequence or a set of sequences" []
+comment: more generic than the definition in EDAM
+
+[Term]
+id: sequence_length
+xref: EDAM_data:1249
+is_a: sequence_attribute
+
+[Term]
+id: genome_size
+def: "Total number of bases of all components of a genome" []
+is_a: sequence_length
+
+[Term]
+id: feature_count
+def: "Number of instances of selected features in a sequence" []
+is_a: sequence_attribute ! is_a: STATO:0000047 ! count
+
+[Term]
+id: feature_type_count
+def: "Number of instances of features selected by their feature type (term of the SOFA subset of SO ontology)" []
+is_a: feature_count
+comment: Report "Number of <feature_type> (SO:...)" if the feature type is a SO ontology leaf, or "Total number of <feature_type> (SO:...)" if an internal node
+
+[Term]
+id: sequence_composition
+xref: EDAM_data:1261 ! Sequence composition report
+is_a: sequence_attribute
+
+[Term]
+id: gc_content
+def: "Number of G or C bases in a sequence" []
+is_a: sequence_composition
+
+[Term]
+id: kmer_spectrum
+def: "Frequency of subsequences of given length k, starting from each position of a sequence" []
+is_a: sequence_composition
+comment: related to EDAM_data:1266, Base word frequency table
+
