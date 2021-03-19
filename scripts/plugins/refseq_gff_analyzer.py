@@ -2,22 +2,6 @@
 """
 Count features of different type and class
 from a NCBI Refseq genome annotation GFF file.
-
----
-id: refseq_gff_count
-version: 0.1.0
-input: genome annotation; from NCBI Refseq; gff, optionally gzipped
-output: feature_type_count
-method: |
-  counts features of a predefined set of feature_type
-  - feature_type is defined as in GFF (i.e. term from the SOFA
-    subset of the SO ontology)
-  - to avoid counting portions of the same feature multiple
-    times, children of the same type of the same gene
-    are counted only once
-  - for some feature_type (e.g. rRNA), a more specific
-    feature_type (e.g. rRNA_16S) is assigned using information
-    from the attributes (e.g. product_name)
 """
 
 from collections import defaultdict
@@ -57,6 +41,22 @@ def process_gene_feature(db, gene, counters, logs):
     logs["unexpected_gene_child_feature_type"].append(str(child))
 
 def analyze(filename, **kwargs):
+  """
+  id: refseq_gff_count
+  version: 0.1.0
+  input: genome annotation; from NCBI Refseq; gff, optionally gzipped
+  output: feature_type_count
+  method: |
+    counts features of a predefined set of feature_type
+    - feature_type is defined as in GFF (i.e. term from the SOFA
+      subset of the SO ontology)
+    - to avoid counting portions of the same feature multiple
+      times, children of the same type of the same gene
+      are counted only once
+    - for some feature_type (e.g. rRNA), a more specific
+      feature_type (e.g. rRNA_16S) is assigned using information
+      from the attributes (e.g. product_name)
+  """
   db = gffutils.create_db(filename, ":memory:",
                           merge_strategy="create_unique")
   counters = defaultdict(int)

@@ -56,12 +56,15 @@ import textwrap
 import uuid
 
 def compute(analyzer, datafile, params, outfile, logfile, pfx, verbose):
-  counters, info = analyzer.analyze(datafile, **params)
+  if analyzer.__nim__:
+    counters, info = analyzer.analyze(datafile, params)
+  else:
+    counters, info = analyzer.analyze(datafile, **params)
   pfx = pfx + "\t" if pfx else ""
   for k1, k2_v in counters.items():
     for k2, v in k2_v.items():
       outfile.write(f"{pfx}{k1}\t{k2}\t{v}\n")
-  if logfile:
+  if logfile and info:
     for k, v in info.items():
       for e in v:
         logfile.write(f"{pfx}{k}\t{e}\n")
@@ -69,7 +72,7 @@ def compute(analyzer, datafile, params, outfile, logfile, pfx, verbose):
 class Report():
   def __init__(self, analyzer, user, system, reason, params):
     self.data = {}
-    plugin_data = yaml.safe_load(analyzer.__doc__.split("\n---\n")[1])
+    plugin_data = yaml.safe_load(analyzer.analyze.__doc__)
     self.data["plugin_id"] = plugin_data["id"]
     self.data["plugin_version"] = plugin_data["version"]
     self.data["system_id"] = system
@@ -106,7 +109,7 @@ def main(args):
     id_from_filename = fnparser.id_from_filename
   else:
     id_from_filename = lambda x: x
-  analyzer = mod.importer(args["<analyzer>"], args["--verbose"])
+  analyzer = mod.py_or_nim(args["<analyzer>"], args["--verbose"])
   report = Report(analyzer, args["--user"], args["--system"], args["--reason"],
                   args["--params"])
   outfile = open(args["--out"], "a") if args["--out"] else sys.stdout

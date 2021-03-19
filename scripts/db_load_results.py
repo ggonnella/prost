@@ -76,8 +76,7 @@ def insert_or_check(cursor, tablename, data, primary_key, replace,
   return data
 
 def process_plugin_description(cursor, plugin, replace):
-  yamltxt = plugin.__doc__.split("\n---\n")[1]
-  data = yaml.safe_load(yamltxt)
+  data = yaml.safe_load(plugin.analyze.__doc__)
   insert_or_check(cursor, "pr_plugin_description", data, ["id", "version"],
                   replace, "plugin description",
                   "Please either use the --replace-plugin-record option or "+\

@@ -1,11 +1,12 @@
 ##
-## Compute the total lenght of the sequences in a Fasta file
+## Compute simple sequence statistics for a Fasta file
 ##
 
 import strutils, os
 import math
 import nimpy
 import zip/gzipfiles
+import tables
 
 const bufsize = 2 ^ 16
 
@@ -124,8 +125,37 @@ proc totallen(fasfile: string, gzipped: bool): uint {.exportpy.} =
   if gzipped: process_gzipped(fasfile, isalphatab)
   else: process_file(fasfile, isalphatab)
 
-proc gcpercent(fasfile: string, gzipped: bool): float {.exportpy.} =
+proc stats(fasfile: string, gzipped: bool): (int, float) {.exportpy.} =
   let (gc, total) = block:
     if gzipped: process_gzipped2(fasfile, isgctab, isalphatab)
     else: process_file2(fasfile, isgctab, isalphatab)
-  return gc.int/total.int
+  return (total.int, gc.int/total.int)
+
+proc analyze(filename: string,
+             kwargs: Table[string, PyObject]):
+              tuple[results: Table[string, Table[string, string]],
+                    logs: Table[string, seq[string]]] {.exportpy.} =
+  ## id: fas_stats_nim
+  ## version: 0.1.0
+  ## input: genome sequence; Fasta; optionally Gzip-compressed
+  ## output: sequence_attribute.(genome_size,GC_content)
+  ## method: count bases
+  ## implementation: NIM module, lookup table
+  ## parameters: force_uncompressed (bool)
+  ## req_software: nim >= 1.2.8; nimble:zip >= 0.3.1
+  ## advice: >
+  ##   preferred to fasgz_stats_posix, if nim is available, since it is faster
+  let force_uncompressed = block:
+    if kwargs.has_key("force_uncompressed"):
+      kwargs["force_uncompressed"].to(bool)
+    else: false
+  let (total, gc) = stats(filename, not force_uncompressed)
+  result.results = {"sequence_attribute":
+              {"genome_size": $(total),
+               "gc_content": $(gc),
+               "force": $(force_uncompressed),
+               }.to_table}.to_table
+
+proc gcpercent(fasfile: string, gzipped: bool): float {.exportpy.} =
+  return stats(fasfile, gzipped)[1]
+
