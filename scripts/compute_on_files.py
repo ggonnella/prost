@@ -53,6 +53,7 @@ import getpass
 import yaml
 from datetime import datetime
 import textwrap
+import uuid
 
 def compute(analyzer, datafile, params, outfile, logfile, pfx, verbose):
   counters, info = analyzer.analyze(datafile, **params)
@@ -65,37 +66,35 @@ def compute(analyzer, datafile, params, outfile, logfile, pfx, verbose):
       for e in v:
         logfile.write(f"{pfx}{k}\t{e}\n")
 
-def initialize_report(rfile, analyzer, user, system, reason, params):
-  plugin_data = yaml.safe_load(analyzer.__doc__.split("\n---\n")[1])
-  rfile.write("plugin_id: "+plugin_data["id"]+"\n")
-  rfile.write("plugin_version: "+plugin_data["version"]+"\n")
-  rfile.write(f"system_id: {system}\n")
-  rfile.write(f"user_id: {user}\n")
-  if reason:
-    rfile.write(f"reason: {reason}\n")
-  if params:
-    rfile.write(f"parameters: |\n")
-    rfile.write(textwrap.indent(yaml.dump(params), "  ", lambda l: True))
-  rfile.write("time_start: "+str(datetime.now())+"\n")
-  rfile.flush()
+class Report():
+  def __init__(self, analyzer, user, system, reason, params):
+    self.data = {}
+    plugin_data = yaml.safe_load(analyzer.__doc__.split("\n---\n")[1])
+    self.data["plugin_id"] = plugin_data["id"]
+    self.data["plugin_version"] = plugin_data["version"]
+    self.data["system_id"] = system
+    self.data["user_id"] = user
+    if reason:
+      self.data["reason"] = reason
+    if params:
+      self.data["parameters"] = yaml.dump(params)
+    self.data["uuid"] = uuid.uuid4().bytes
+    self.data["time_start"] = str(datetime.now())
 
-def finalize_report(rfile, n_processed, err=None, datafile=None):
-  rfile.write("time_end: "+str(datetime.now())+"\n")
-  rfile.write(f"n_units: {n_processed}\n")
-  if err:
-    if n_processed == 0:
-      status = "aborted"
+  def finalize(self, rfile, n_processed, err=None, datafile=None):
+    self.data["time_end"] = str(datetime.now())
+    self.data["n_units"] = n_processed
+    if err:
+      self.data["status"] = "aborted" if n_processed == 0 else "partial"
+      remark = {}
+      remark["error_datafile"] = datafile
+      remark["error_class"] = err.__class__.__name__
+      remark["error_message"] = str(err)
+      self.data["remarks"] = yaml.dump(remark)
     else:
-      status = "partial"
-    rfile.write("remarks: |\n")
-    rfile.write(f"  error_datafile: {datafile}\n")
-    rfile.write(f"  error_class: {err.__class__.__name__}\n")
-    rfile.write(f"  error_message: |-\n")
-    rfile.write(textwrap.indent(str(err), "    ", lambda l: True))
-  else:
-    status = "completed"
-  rfile.write(f"comp_status: {status}\n")
-  rfile.flush()
+      self.data["status"] = "completed"
+    yaml.dump(self.data, rfile)
+    rfile.flush()
 
 def main(args):
   skip = set()
@@ -108,8 +107,8 @@ def main(args):
   else:
     id_from_filename = lambda x: x
   analyzer = mod.importer(args["<analyzer>"], args["--verbose"])
-  initialize_report(args["--report"], analyzer, args["--user"],
-                    args["--system"], args["--reason"], args["--params"])
+  report = Report(analyzer, args["--user"], args["--system"], args["--reason"],
+                  args["--params"])
   outfile = open(args["--out"], "a") if args["--out"] else sys.stdout
   logfile = open(args["--log"], "a") if args["--log"] else sys.stderr
   files = glob(args["<globpattern>"])
@@ -126,9 +125,9 @@ def main(args):
       except Exception as err:
         logfile.flush()
         outfile.flush()
-        finalize_report(args["--report"], n_processed, err, fn)
+        report.finalize(args["--report"], n_processed, err, fn)
         raise(err)
-  finalize_report(args["--report"], n_processed)
+  report.finalize(args["--report"], n_processed)
   if args["--out"]: outfile.close()
   if args["--log"]: logfile.close()
 

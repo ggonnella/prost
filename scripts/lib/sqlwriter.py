@@ -59,7 +59,7 @@ def load_data_sql(datafile: str, tablename: str, columns: Union[List[str], str],
   if fixed_data:
     if isinstance(fixed_data, str):
       fixed_data = _fixed_data_from_file(fixed_data)
-    setelems = [f"{k} = \"{v}\" " for k, v in fixed_data.items()]
+    setelems = [f"{k} = %({k})s" for k in fixed_data.keys()]
     sql += "SET "+", ".join(setelems) + " "
   if headerpfx:
     n_skip = tables.n_header_lines(datafile, headerpfx)

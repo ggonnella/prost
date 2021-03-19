@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""
-DB Schema for tables representing computations.
-
-Tables storing the results of computations can refer to this table for the sake
-of data traceability and computation reproducibility.
-"""
 from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Sequence, Column, Integer, Float, String, DateTime,\
                        Boolean, Text, Enum
 from sqlalchemy_repr import PrettyRepresentableBase
-from sqlalchemy.dialects.mysql import DOUBLE
+from sqlalchemy.dialects.mysql import DOUBLE, BINARY
 
 Base = declarative_base(cls=PrettyRepresentableBase)
 
 utf8_cs_args = {'mysql_charset': 'utf8', 'mysql_collate': 'utf8_bin'}
 
-class Computation(Base):
-  __tablename__ = 'computation'
-  id = Column(Integer, primary_key=True, autoincrement=True)
+class ComputationReport(Base):
+  """
+  Report of a computation.
+
+  Tables storing the results of computations can refer to this table for the
+  sake of data traceability and computation reproducibility.
+  """
+  __tablename__ = 'pr_computation_report'
+  uuid = Column(BINARY(16), primary_key=True)
   plugin_id = Column(String(256), nullable=False)
   plugin_version = Column(String(64), nullable=False)
   parameters = Column(Text(4096))
