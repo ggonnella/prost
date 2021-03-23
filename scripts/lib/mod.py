@@ -13,10 +13,16 @@ def importer(filename, verbose=False):
         f"# python module {modulename} imported from file {filename}\n")
   return m
 
-def nim(filename, verbose=False):
+def nim(filename, verbose=False, import_constants=True):
     modulename = Path(filename).stem
     parent = Path(filename).parent
     m = nimporter.Nimporter.import_nim_module(modulename, [parent])
+    if import_constants:
+      for k in list(m.__dict__.keys()):
+        if k.startswith("py_const_"):
+          c = k[len("py_const_"):]
+          setattr(m, c, getattr(m, k)())
+          delattr(m, k)
     if verbose:
       sys.stderr.write(
           f"# nim module {modulename} imported from file {filename}\n")

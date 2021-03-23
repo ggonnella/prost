@@ -3,20 +3,12 @@
 Perform computations on multiple files and output the results as table.
 
 Usage:
-  compute_on_file.py [options] <analyzer> <globpattern>
+  compute_on_file.py [options] <plugin> <globpattern>
 
 Arguments:
-  analyzer: py module providing analyze(datafile, **kwargs) => (results, logs)
-            analyzes the data file and returns:
-            <results>: the analysis results, dict {str: dict {str: any}}
-                       keys of external dict: attr_class (e.g. "seq_stats")
-                       keys of internal dict: attr_instance (e.g. "genome_size")
-                       values: attribute value (e.g. 12)
-            <logs>:    messages reporting unexpected data, errors, etc;
-                       keys are categories (e.g. "unexpected_features"),
-                       values are lists of strings (e.g. GFF lines)
-            kwargs are optionally additional parameters for the computation
-  globpattern: the globpattern to find the files
+  plugin: Python or Nim module providing compute() function;
+          see plugins/README.md for the specification of the required interface
+  globpattern: the globpattern to find the input files
 
 Options:
   --fnparser FNAME  py module providing a id_from_filename(filename) function,
@@ -55,26 +47,20 @@ from datetime import datetime
 import textwrap
 import uuid
 
-def compute(analyzer, datafile, params, outfile, logfile, pfx, verbose):
-  if analyzer.__nim__:
-    counters, info = analyzer.analyze(datafile, params)
-  else:
-    counters, info = analyzer.analyze(datafile, **params)
+def compute(plugin, datafile, params, outfile, logfile, pfx, verbose):
+  results, logs = plugin.compute(datafile, **params)
   pfx = pfx + "\t" if pfx else ""
-  for k1, k2_v in counters.items():
-    for k2, v in k2_v.items():
-      outfile.write(f"{pfx}{k1}\t{k2}\t{v}\n")
-  if logfile and info:
-    for k, v in info.items():
-      for e in v:
-        logfile.write(f"{pfx}{k}\t{e}\n")
+  for k, v in results.items():
+    outfile.write(f"{pfx}{k}\t{v}\n")
+  if logfile and logs:
+    for msg in logs:
+      logfile.write(f"{pfx}\t{msg}\n")
 
 class Report():
-  def __init__(self, analyzer, user, system, reason, params):
+  def __init__(self, plugin, user, system, reason, params):
     self.data = {}
-    plugin_data = yaml.safe_load(analyzer.analyze.__doc__)
-    self.data["plugin_id"] = plugin_data["id"]
-    self.data["plugin_version"] = plugin_data["version"]
+    self.data["plugin_id"] = plugin.ID
+    self.data["plugin_version"] = plugin.VERSION
     self.data["system_id"] = system
     self.data["user_id"] = user
     if reason:
@@ -109,8 +95,8 @@ def main(args):
     id_from_filename = fnparser.id_from_filename
   else:
     id_from_filename = lambda x: x
-  analyzer = mod.py_or_nim(args["<analyzer>"], args["--verbose"])
-  report = Report(analyzer, args["--user"], args["--system"], args["--reason"],
+  plugin = mod.py_or_nim(args["<plugin>"], args["--verbose"])
+  report = Report(plugin, args["--user"], args["--system"], args["--reason"],
                   args["--params"])
   outfile = open(args["--out"], "a") if args["--out"] else sys.stdout
   logfile = open(args["--log"], "a") if args["--log"] else sys.stderr
@@ -122,7 +108,7 @@ def main(args):
       skip.remove(identifier)
     else:
       try:
-        compute(analyzer, fn, args["--params"],
+        compute(plugin, fn, args["--params"],
                 outfile, logfile, identifier, args["--verbose"])
         n_processed += 1
       except Exception as err:
@@ -137,7 +123,7 @@ def main(args):
 def validated(args):
   schema = Schema({"--fnparser": Or(None, os.path.exists),
                    "<globpattern>": str,
-                   "<analyzer>": os.path.exists,
+                   "<plugin>": os.path.exists,
                    "--verbose": Or(None, bool),
                    "--out": Or(None, str),
                    "--log": Or(None, str),
@@ -155,7 +141,7 @@ def validated(args):
 
 if "snakemake" in globals():
   args = snake.args(snakemake,
-        input=["<analyzer>", "--fnparser"],
+        input=["<plugin>", "--fnparser"],
         log=["--out", "--log"],
         params=["--verbose", "<globpattern>",
                 "--user", "--system", "--reason"])

@@ -21,7 +21,6 @@ Options:
                            plugin, if changed (default: fail if changed)
   --replace-report-record  replace existing db record for the computation
                            report, if changed (default: fail if changed)
-  --float, -f      value is float (default: int)
   --scored, -s     results file has a float score column (default: False)
   --ignore, -i     use IGNORE on repeated primary key (default: REPLACE)
   --dropkeys, -k   drop non-unique indices before inserting
@@ -33,7 +32,7 @@ Options:
 from docopt import docopt
 from schema import Schema, And, Or, Use, Optional
 import os
-from lib import snake, mysql, sqlwriter, mod
+from lib import snake, mysql, sqlwriter, mod, plugins
 from dbschema import attribute_value
 import yaml
 import MySQLdb
@@ -76,16 +75,16 @@ def insert_or_check(cursor, tablename, data, primary_key, replace,
   return data
 
 def process_plugin_description(cursor, plugin, replace):
-  data = yaml.safe_load(plugin.analyze.__doc__)
-  insert_or_check(cursor, "pr_plugin_description", data, ["id", "version"],
+  insert_or_check(cursor, "pr_plugin_description",
+                  plugins.metadata(plugin), ["ID", "VERSION"],
                   replace, "plugin description",
                   "Please either use the --replace-plugin-record option or "+\
                   "increase the plugin version number\n")
   return data
 
 def check_plugin_key_consistency(data, exp_plugin_data):
-  for key in ["id", "version"]:
-    report_value = data["plugin_"+key]
+  for key in ["ID", "VERSION"]:
+    report_value = data["plugin_"+key.lower()]
     exp_value = exp_plugin_data[key]
     if report_value != exp_value:
       raise RuntimeError(f"Plugin {key} mismatch\n"+
@@ -99,6 +98,27 @@ def process_computation_report(cursor, reportfn, exp_plugin_data, replace):
                   "computation report",
                   "Please either use the --replace-report-record option\n")
   return data["uuid"]
+
+def fetch_column_names(cursor, tablename):
+  cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "+\
+                 f"WHERE TABLE_NAME='%s';", tablename)
+  return [row["COLUMN_NAME"] for row in cursor.fetchall()]
+
+# All columns must already exist. Another script shall create them.
+def find_correct_table(cursor, plugin):
+  tablepfx = "pr_attribute_values_"
+  tablenum = 0
+  while True:
+    tablename = tablepfx+str(tablenum)
+    colnames = fetch_column_names(cursor, tablepfx+str(tablenum))
+    if not colnames:
+      return None
+    # the first version shall only accept columns from a single table
+    # therefore check only OUTPUT[0]
+    to_find = plugin.OUTPUT[0]
+    if to_find in colnames:
+      return tablename
+    tablenum += 1
 
 def main(args):
   db = mysql.connect(args)

@@ -17,6 +17,7 @@ def _column_names_from_dbschema(filename, tablename):
   return klass.file_column_names()
 
 def load_data_sql(datafile: str, tablename: str, columns: Union[List[str], str],
+                  skipfields: List[int] = [],
                   fixed_data: Union[None, str, Dict[str, Any]] = None,
                   ignore: Union[bool, None] = False,
                   dropkeys: Union[bool, None] = False,
@@ -30,6 +31,7 @@ def load_data_sql(datafile: str, tablename: str, columns: Union[List[str], str],
     columns: either a list of strings (column names) or a python module filename
              which provides: tablename2class[<tablename>].file_column_names()
              returning a list of strings (column names)
+    skipfields = fields of the file to be ignored (1-based field numbers)
     fixed_data (optional): data which must be added to each column
              either a string (filename of tsv with lines:
              column_name <TAB> value) or a dict column_name => value
@@ -55,6 +57,9 @@ def load_data_sql(datafile: str, tablename: str, columns: Union[List[str], str],
     sql += r"LINES TERMINATED BY '\t|\n' "
   if isinstance(columns, str):
     columns = _column_names_from_db_schema(columns, tablename)
+  if skipfields:
+    for n in sorted(skipfields):
+      columns.insert(n-1, "@dummy")
   sql +="("+",".join(columns)+") "
   if fixed_data:
     if isinstance(fixed_data, str):

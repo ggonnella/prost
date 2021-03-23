@@ -4,26 +4,52 @@ Count features of different type and class
 from a NCBI Refseq genome annotation GFF file.
 """
 
+ID =      "refseq_gff_count"
+VERSION = "0.1.0"
+INPUT =   "genome annotation; from NCBI Refseq; gff, optionally gzipped"
+OUTPUT =  [
+  "n_protein_coding_gene", "n_tRNA", "n_ncRNA", "n_rRNA_16S", "n_rRNA_5S",
+  "n_rRNA_23S", "n_hammerhead_ribozyme", "n_pseudogene", "n_molecule",
+  "n_riboswitch", "n_CRISPR",
+]
+METHOD = """
+Counts features of a predefined set of feature_type
+- feature_type is defined as in GFF (i.e. term from the SOFA
+  subset of the SO ontology)
+- to avoid counting portions of the same feature multiple
+  times, children of the same type of the same gene
+  are counted only once
+- for some feature_type (e.g. rRNA), a more specific
+  feature_type (e.g. rRNA_16S) is assigned using information
+  from the attributes (e.g. product_name)
+"""
+IMPLEMENTATION = "Based on the py library Gffutils, using an in-memory database"
+REQ_SOFTWARE = "pip library gffutils"
+
 from collections import defaultdict
 import gffutils
 import sys
 
-def process_gene_feature(db, gene, counters, logs):
+def _dict2list(d, keynames):
+  assert(not(set(d.keys())-set(keynames)))
+  [d.get(k, 0) for k in keynames]
+
+def _process_gene_feature(db, gene, counters, logs):
   children = list(db.children(gene.id, level=1))
   if len(children) == 0:
-    logs["gene_with_no_children"].append(str(gene))
+    logs.append(f"gene_with_no_children\t{gene}")
     return
   child = children[0]
   if not all([child.featuretype == c.featuretype for c in children]):
-    logs["gene_with_heterogeneous_children_type"].append(str(gene))
+    logs.append(f"gene_with_heterogeneous_children_type\t{gene}")
     return
   if child.featuretype == "CDS":
-    counters["protein_coding_genes"] += 1
+    counters["protein_coding_gene"] += 1
   elif child.featuretype == "tRNA":
-    counters["tRNAs"] += 1
+    counters["tRNA"] += 1
   elif child.featuretype in ["ncRNA", "RNase_P_RNA", "SRP_RNA", "tmRNA",
                              "antisense_RNA"]:
-    counters["ncRNAs"] += 1
+    counters["ncRNA"] += 1
   elif child.featuretype == "rRNA":
     product = child.attributes['product'][0]
     if product.startswith("16S"):
@@ -33,53 +59,36 @@ def process_gene_feature(db, gene, counters, logs):
     elif product.startswith("23S"):
       counters["rRNA_23S"] += 1
     else:
-      logs["rRNA_unknown"].append(str(child))
+      logs.append(f"rRNA_unknown\t{child}")
       assert(False)
   elif child.featuretype == "hammerhead_ribozyme":
-    counters["hammerhead_ribozymes"] += 1
+    counters["hammerhead_ribozyme"] += 1
   else:
-    logs["unexpected_gene_child_feature_type"].append(str(child))
+    logs.append(f"unexpected_gene_child_feature_type\t{child}")
 
-def analyze(filename, **kwargs):
-  """
-  id: refseq_gff_count
-  version: 0.1.0
-  input: genome annotation; from NCBI Refseq; gff, optionally gzipped
-  output: feature_type_count
-  method: |
-    counts features of a predefined set of feature_type
-    - feature_type is defined as in GFF (i.e. term from the SOFA
-      subset of the SO ontology)
-    - to avoid counting portions of the same feature multiple
-      times, children of the same type of the same gene
-      are counted only once
-    - for some feature_type (e.g. rRNA), a more specific
-      feature_type (e.g. rRNA_16S) is assigned using information
-      from the attributes (e.g. product_name)
-  """
+def compute(filename, **kwargs):
   db = gffutils.create_db(filename, ":memory:",
                           merge_strategy="create_unique")
   counters = defaultdict(int)
-  logs = defaultdict(list)
+  logs = list()
   for ftr in db.all_features():
     if len(list(db.parents(ftr.id))) == 0:
       if ftr.featuretype == "gene":
-        process_gene_feature(db, ftr, counters, logs)
+        _process_gene_feature(db, ftr, counters, logs)
       elif ftr.featuretype == "pseudogene":
-        counters["pseudogenes"] += 1
+        counters["pseudogene"] += 1
       elif ftr.featuretype == "region":
-        counters["n_molecules"] += 1
+        counters["molecule"] += 1
       elif ftr.featuretype in ["sequence_feature"]:
-        logs["generic_sequence_feature"].append(str(ftr))
+        logs.append(("generic_sequence_feature", str(ftr)))
       elif ftr.featuretype == "riboswitch":
-        counters["riboswitches"] += 1
+        counters["riboswitche"] += 1
       elif ftr.featuretype == "direct_repeat":
         if ftr.attributes["rpt_family"][0] == "CRISPR":
-          counters["CRISPRs"] += 1
+          counters["CRISPR"] += 1
         else:
-          logs["direct_repeat_not_CRISPR"].append(str(ftr))
+          logs.append(f"direct_repeat_not_CRISPR\t{ftr}")
       else:
-        logs["top_level_feature_other_type"].append(str(ftr))
-  results = {"feature_type_count": counters}
-  return results, logs
+        logs.append(f"top_level_feature_other_type\t{ftr}")
+  return _dict2list(counters, OUTPUT), logs
 

@@ -3,18 +3,16 @@ Compute sequence statistics using Posix command line tools
 """
 import sh
 
-def analyze(filename, **kwargs):
-  """
-  # Plugin documentation in YAML format:
-  id: fas_stats_posix
-  version: 0.1.0
-  input: genome sequence; Fasta; optionally Gzip-compressed
-  output: sequence_attribute.(genome_size,GC_content)
-  method: count bases
-  implementation: pipe of posix tools using sh library
-  req_software: grep, tr, wc, zcat
-  parameters: uncompressed (bool)
-  """
+ID =      "fas_stats_posix"
+VERSION = "0.1.0"
+INPUT =   "genome sequence; Fasta; optionally Gzip-compressed"
+OUTPUT =  ["genome_size","GC_content"]
+METHOD =  "count bases"
+IMPLEMENTATION = "pipe of posix tools, called from python using sh library"
+REQ_SOFTWARE   = "grep, tr, wc, zcat"
+PARAMETERS     = [("uncompressed", "bool", "False", "input is not gzipped")]
+
+def compute(filename, **kwargs):
   results = {}
   countchars = sh.wc.bake(c=True)
   gc_only = sh.tr.bake("-dc", "[GCgc]", _piped=True)
@@ -27,6 +25,4 @@ def analyze(filename, **kwargs):
   else:
     genomelen = int(countchars(non_space(vgrep(uncompressed(filename), "^>"))))
     gclen = int(countchars(gc_only(vgrep(uncompressed(filename), "^>"))))
-  results["genome_size"] = genomelen
-  results["gc_content"] = gclen/genomelen
-  return {"sequence_attribute": results}, {}
+  return [genomelen, gclen/genomelen], []
