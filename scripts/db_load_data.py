@@ -24,6 +24,7 @@ Options:
                    internal lines starting with the prefix are not skipped
                    (consider preprocessing with grep -v instead in this case)
   --headerpfx PFX  header line prefix used by --skipheader (default: #)
+  --skipfields L   comma-sep list of 1-based field numbers to skip
   --ignore, -i     use IGNORE on repeated primary key (default: REPLACE)
   --dbschema, -d   interpret the column argument as a python module name
                    which provides (1) a dictionary tablename2class, which
@@ -47,8 +48,8 @@ def main(args):
   headerpfx = args["--headerpfx"] if args["--skipheader"] else ""
   columns = args["<columns>"][0] if args["--dbschema"] else args["<columns>"]
   statements = sqlwriter.load_data_sql(args["<tsv>"], args["<table>"], columns,
-                      args["--set"], args["--ignore"], args["--dropkeys"],
-                      args["--ncbidmp"], headerpfx)
+                      args["--skipfields"], args["--set"], args["--ignore"],
+                      args["--dropkeys"], args["--ncbidmp"], headerpfx)
   mysql.connect_and_execute(args, statements)
 
 def validated(args):
@@ -62,6 +63,9 @@ def validated(args):
                    "--dbschema": Or(None, True, False),
                    "--ignore": Or(None, True, False),
                    "--dropkeys": Or(None, True, False),
+                   "--skipfields": Or(And(None, Use(lambda n: [])),
+                     And(str, Use(lambda l: [int(e) for e in l.split(",")]),
+                         lambda l: all(e > 0 for e in l)))
                    "--ncbidmp": Or(None, True, False),
                    "--skipheader": Or(None, True, False),
                    "--headerpfx": Or(And(None, Use("#")), And(str, len)),
@@ -74,7 +78,8 @@ if "snakemake" in globals():
         config=["<dbuser>", "<dbpass>", "<dbname>"],
         input=["<dbsocket>", "<tsv>", ("--set", "common_values")],
         params=["<table>", "<columns>", "--dbschema", "--ignore",
-                "--dropkeys", "--ncbidmp", "--skipheader", "--headerpfx"])
+                "--dropkeys", "--ncbidmp", "--skipheader", "--headerpfx",
+                "--skipfields"])
   if args["--dbschema"]:
     args["<columns>"] = args["--dbschema"]
     args["--dbschema"] = True

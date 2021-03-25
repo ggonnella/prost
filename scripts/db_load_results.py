@@ -33,9 +33,11 @@ from docopt import docopt
 from schema import Schema, And, Or, Use, Optional
 import os
 from lib import snake, mysql, sqlwriter, mod, plugins
-from dbschema import attribute_value
 import yaml
 import MySQLdb
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
+from dbschema.attribute import AttributeDefinition, AttributeValueTables
 
 def insert_sql(tablename, columns, replace_columns=None):
   statement = f"INSERT INTO {tablename} ("
@@ -69,7 +71,6 @@ def insert_or_check(cursor, tablename, data, primary_key, replace,
     cursor.execute(statement, data)
   except MySQLdb.IntegrityError:
     where = " AND ".join([f"{k} = %({k})s" for k in primary_key])
-
     cursor.execute(f"SELECT * from {tablename} WHERE {where};", data)
     check_data_consistency(cursor.fetchone(), data, desc, advice)
   return data
@@ -80,12 +81,11 @@ def process_plugin_description(cursor, plugin, replace):
                   replace, "plugin description",
                   "Please either use the --replace-plugin-record option or "+\
                   "increase the plugin version number\n")
-  return data
 
-def check_plugin_key_consistency(data, exp_plugin_data):
+def check_plugin_key_consistency(data, plugin):
   for key in ["ID", "VERSION"]:
     report_value = data["plugin_"+key.lower()]
-    exp_value = exp_plugin_data[key]
+    exp_value = getattr(plugin, key)
     if report_value != exp_value:
       raise RuntimeError(f"Plugin {key} mismatch\n"+
           f"{key} from the plugin module: {exp_value}\n"+\
@@ -99,43 +99,40 @@ def process_computation_report(cursor, reportfn, exp_plugin_data, replace):
                   "Please either use the --replace-report-record option\n")
   return data["uuid"]
 
-def fetch_column_names(cursor, tablename):
-  cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "+\
-                 f"WHERE TABLE_NAME='%s';", tablename)
-  return [row["COLUMN_NAME"] for row in cursor.fetchall()]
-
-# All columns must already exist. Another script shall create them.
-def find_correct_table(cursor, plugin):
-  tablepfx = "pr_attribute_values_"
-  tablenum = 0
-  while True:
-    tablename = tablepfx+str(tablenum)
-    colnames = fetch_column_names(cursor, tablepfx+str(tablenum))
-    if not colnames:
-      return None
-    # the first version shall only accept columns from a single table
-    # therefore check only OUTPUT[0]
-    to_find = plugin.OUTPUT[0]
-    if to_find in colnames:
-      return tablename
-    tablenum += 1
+def locate_attr_columns(args, attribute_names):
+  connstr = "".join(["mysql+mysqldb://", args["<dbuser>"],
+                     ":", args["<dbpass>"], "@localhost/",
+                     args["<dbname>"], "?unix_socket=",
+                     args["<dbsocket>"]])
+  engine = create_engine(connstr, echo=True)
+  avt = AttributeValueTables(engine)
+  return avt.locations_for_attributes(attribute_names)
 
 def main(args):
   db = mysql.connect(args)
   cursor = db.cursor(MySQLdb.cursors.DictCursor)
   plugin = mod.importer(args["<plugin>"], args["--verbose"])
-  plugin_data = process_plugin_description(cursor, plugin,
+  process_plugin_description(cursor, plugin,
                    args["--replace-plugin-record"])
   computation_id = process_computation_report(cursor, args["<report>"],
-                      plugin_data, args["--replace-report-record"])
-  fixed_data = {"computation_id": computation_id}
-  tablename = attribute_value.tablename("float" if args["--float"] else "int",
-                                        args["--scored"])
-  columns = attribute_value.datafile_columns(args["--scored"])
-  statements = sqlwriter.load_data_sql(args["<results>"], tablename, columns,
-                    fixed_data, args["--ignore"], args["--dropkeys"], False, "")
-  for statement in statements:
-    cursor.execute(statement, fixed_data)
+                      plugin, args["--replace-report-record"])
+  locations = locate_attr_columns(args, plugin.OUTPUT)
+  for tablename, tlocations in locations["tables"].items():
+    fixed_data = {}
+    for cn in tlocations["ccols_to_set"]:
+      fixed_data[cn] = computation_id
+    for cn in tlocations["ccols_to_unset"]:
+      fixed_data[cn] = None
+    skipfields = []
+    for i, cn in locations["vcols"]:
+      if not cn in tlocations["vcols"]:
+        skipfields.append(i+1)
+    statements = sqlwriter.load_data_sql(args["<results>"], tablename,
+                      tlocations["vcols"],
+                      skipfields, fixed_data, args["--ignore"],
+                      args["--dropkeys"], False, "")
+    for statement in statements:
+      cursor.execute(statement, fixed_data)
   db.commit()
   cursor.close()
 
@@ -149,8 +146,6 @@ def validated(args):
                    "<plugin>": And(str, open),
                    "--replace-plugin-record": Or(None, True, False),
                    "--replace-report-record": Or(None, True, False),
-                   "--float": Or(None, True, False),
-                   "--scored": Or(None, True, False),
                    "--ignore": Or(None, True, False),
                    "--dropkeys": Or(None, True, False),
                    Optional(str): object})
@@ -161,7 +156,7 @@ if "snakemake" in globals():
         config=["<dbuser>", "<dbpass>", "<dbname>"],
         input=["<dbsocket>", "<results>", "<report>", "<plugin>"],
         params=["--replace-plugin-record", "--replace-report-record",
-                "--float", "--scored", "--ignore", "--dropkeys"])
+                "--ignore", "--dropkeys"])
   main(validated(args))
 elif __name__ == "__main__":
   args = docopt(__doc__, version="0.1")

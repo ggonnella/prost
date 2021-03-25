@@ -10,87 +10,89 @@ genome_size:
     plasmid: SO:0000155
     replicon: SO:0001235
   unit: "bp"
+  computation_group: "sequence_stats"
 GC_content:
   datatype: "Float"
   definition: >-
     Fraction of G and C among the bases in the genome
   related_ontology_terms: |
     sequence_composition_report: EDAM_data:1261
-  computation_sibling: "genome_size"
+  computation_group: "sequence_stats"
 n_protein_coding_gene:
   datatype: "Integer"
   definition: >-
     Number of protein coding genes in the genome
   ontology_xref: SO:0001217
+  computation_group: "feature_type_count"
 n_replicon:
   datatype: "Integer"
   definition: >-
     Number of replicons in the genome
   ontology_xref: SO:0001235
-  computation_sibling: "n_protein_coding_gene"
+  computation_group: "feature_type_count"
 n_tRNA:
   datatype: "Integer"
   definition: >-
     Number of tRNA genes in the genome
   ontology_xref: SO:0000253
-  computation_sibling: "n_protein_coding_gene"
+  computation_group: "feature_type_count"
 n_ncRNA:
   datatype: "Integer"
   definition: >-
     Number of ncRNA genes in the genome
   ontology_xref: SO:0000655
-  computation_sibling: "n_protein_coding_gene"
+  computation_group: "feature_type_count"
 n_rRNA_16S:
   datatype: "Integer"
   definition: >-
     Number of rRNA 16S genes in the genome
   ontology_xref: SO:0001000
-  computation_sibling: "n_protein_coding_gene"
+  computation_group: "feature_type_count"
 n_rRNA_5S:
   datatype: "Integer"
   definition: >-
     Number of rRNA 5S genes in the genome
   ontology_xref: SO:0000652
-  computation_sibling: "n_protein_coding_gene"
+  computation_group: "feature_type_count"
 n_rRNA_23S:
   datatype: "Integer"
   definition: >-
     Number of rRNA 23S genes in the genome
   ontology_xref: SO:0001001
-  computation_sibling: "n_protein_coding_gene"
+  computation_group: "feature_type_count"
 n_hammerhead_ribozyme:
   datatype: "Integer"
   definition: >-
     Number of hammerhead ribozymes in the genome
   ontology_xref: SO:0000380
-  computation_sibling: "n_protein_coding_gene"
+  computation_group: "feature_type_count"
 n_pseudogene:
   datatype: "Integer"
   definition: >-
     Number of pseudogenes in the genome
   ontology_xref: SO:0000336
-  computation_sibling: "n_protein_coding_gene"
+  computation_group: "feature_type_count"
 n_chromosome:
   datatype: "Integer"
   definition: >-
     Number of chromosomes in the genome
   ontology_xref: SO:0000340
-  computation_sibling: "n_protein_coding_gene"
+  computation_group: "feature_type_count"
 n_plasmid:
   datatype: "Integer"
   definition: >-
     Number of plasmids in the genome
   ontology_xref: SO:0000155
-  computation_sibling: "n_protein_coding_gene"
+  computation_group: "feature_type_count"
 n_riboswitch:
   datatype: "Integer"
   definition: >-
     Number of riboswitches in the genome
   ontology_xref: SO:0000035
-  computation_sibling: "n_protein_coding_gene"
+  computation_group: "feature_type_count"
 n_CRISPR:
   datatype: "Integer"
   definition: >-
     Number of CRISPRs in the genome
     ontology_xref: SO:0001459
-  computation_sibling: "n_protein_coding_gene"
+  computation_group: "feature_type_count"
