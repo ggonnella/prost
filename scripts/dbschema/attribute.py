@@ -26,10 +26,12 @@ class AttributeDefinition(Base):
   __tablename__ = "pr_attribute_definition"
   name = Column(String(62), primary_key=True)
   datatype = Column(String(256), nullable=False)
-  definition = Column(Text(1024))
-  ontology_pfx = Column(String(64))
-  ontology_term = Column(String(64))
-  remark = Column(Text(1024))
+  definition = Column(Text(4096))
+  ontology_xref = Column(String(64))
+  related_ontology_terms = Column(Text(4096))
+  unit = Column(String(64))
+  remark = Column(Text(4096))
+  computation_sibling = Column(String(62))
   __table_args__ = utf8_cs_args
 
 class AttributeValueMixin:
