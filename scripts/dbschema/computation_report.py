@@ -23,7 +23,7 @@ class ComputationReport(Base):
   plugin_version = Column(String(64), nullable=False)
   parameters = Column(Text(4096))
   unit = Column(Enum("assembly"), nullable=False, default="assembly")
-  n_units = Column(Integer, nullable=False)
+  n_units = Column(Integer, default=1)
   reason = Column(Enum("new_data", "new_attributes", "improve_precision"))
   comp_status = Column(Enum("running", "completed", "partial", "aborted"),
                   nullable=False, default="running")

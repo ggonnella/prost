@@ -27,45 +27,43 @@ Options:
 """
 from docopt import docopt
 from schema import Schema, And, Or, Use, Optional
-from lib import snake
+from lib import snake, db
 import os
 import yaml
 from sqlalchemy import create_engine, select
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session
 from dbschema.attribute import AttributeDefinition, AttributeValueTables
 
 def main(args):
-  connstr = "".join(["mysql+mysqldb://", args["<dbuser>"],
-                     ":", args["<dbpass>"], "@localhost/",
-                     args["<dbname>"], "?unix_socket=",
-                     args["<dbsocket>"]])
-  engine = create_engine(connstr, echo=True)
-  avt = AttributeValueTables(engine)
-  if args["--check"]:
-    avt.check_consistency()
-  if args["--update"]:
-    Session = sessionmaker(engine, future=True)
-    with Session.begin() as session:
-      for adef in session.execute(select(AttributeDefinition)).scalars().all():
-        if adef.name in args["<definitions>"]:
-          for fieldname, fieldvalue in args["<definitions>"][adef.name].items():
-            if fieldname == "datatype":
-              if adef.datatype != fieldvalue:
-                raise RuntimeError(f"Cannot update {adef.name} definition as "+\
-                    "datatype changes are not allowed (previous value: "+\
-                    f"{adef.datatype}, current value: {fieldvalue})")
-            else:
-              setattr(adef, fieldname, fieldvalue)
-          session.add(adef)
-  if args["--drop"]:
-    to_delete = set(avt.attribute_names) - set(args["<definitions>"].keys())
-    for aname in to_delete:
-      avt.destroy_attribute(aname)
-  for aname, adef in args["<definitions>"].items():
-    if aname not in avt.attribute_names:
-      adt = adef["datatype"]
-      del adef["datatype"]
-      avt.create_attribute(aname, adt, **adef)
+  engine = create_engine(db.connstr_from(args), echo=True, future=True)
+  with engine.connect() as connection:
+    with connection.begin():
+      session = Session(bind=connection)
+      avt = AttributeValueTables(connection)
+      if args["--check"]:
+        avt.check_consistency()
+      if args["--update"]:
+        for adef in session.execute(select(AttributeDefinition)).scalars().all():
+          if adef.name in args["<definitions>"]:
+            for fieldname, fieldvalue in args["<definitions>"][adef.name].items():
+              if fieldname == "datatype":
+                if adef.datatype != fieldvalue:
+                  raise RuntimeError(f"Cannot update {adef.name} definition as "+\
+                      "datatype changes are not allowed (previous value: "+\
+                      f"{adef.datatype}, current value: {fieldvalue})")
+              else:
+                setattr(adef, fieldname, fieldvalue)
+            session.add(adef)
+      if args["--drop"]:
+        to_delete = set(avt.attribute_names) - set(args["<definitions>"].keys())
+        for aname in to_delete:
+          avt.destroy_attribute(aname)
+      for aname, adef in args["<definitions>"].items():
+        if aname not in avt.attribute_names:
+          adt = adef["datatype"]
+          del adef["datatype"]
+          avt.create_attribute(aname, adt, **adef)
+      session.commit()
 
 def validated(args):
   schema = Schema({"<dbuser>": And(str, len),

@@ -6,11 +6,11 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, Text, Table,\
                        inspect, select, text
 import sqlalchemy.types
-from sqlalchemy.orm.session import sessionmaker
-from sqlalchemy.orm import declared_attr
+from sqlalchemy.orm import declared_attr, Session
 from sqlalchemy_repr import PrettyRepresentableBase
 import ast
 from collections import Counter
+from contextlib import contextmanager
 
 Base = declarative_base(cls=PrettyRepresentableBase)
 
@@ -58,14 +58,12 @@ class AttributeValueTables():
   def classname(sfx):
     return f"AttributeValueT{sfx}"
 
-  def _init_attributes_maps(self):
+  def _init_attributes_maps(self, inspector, session):
     self._a2t = {}
     self._t2a = {}
     self._t2g = {}
     self._ncols = {}
     pfx = AttributeValueMixin.__tablepfx__
-    inspector = inspect(self.engine)
-    session = sessionmaker(bind=self.engine)()
     for tn in inspector.get_table_names():
       if tn.startswith(pfx):
         cnames = [c["name"] for c in inspector.get_columns(tn)]
@@ -73,7 +71,7 @@ class AttributeValueTables():
         self._ncols[sfx] = len(cnames)
         cnames.remove("accession")
         anames = Counter(cn.rsplit("_", 1)[0] for cn in cnames \
-            if not cn.endswith("_g"))
+            if not cn.endswith("_g") and not cn.endswith("_c"))
         self._t2a[sfx] = anames
         for an in anames:
           if an in self._a2t:
@@ -88,9 +86,26 @@ class AttributeValueTables():
             AttributeDefinition.name.in_(anames))).scalars().all()) \
                 for gname in gnames}
 
-  def __init__(self, engine):
-    self.engine = engine
-    self._init_attributes_maps()
+  def __init__(self, connectable):
+    """
+    The connectable attribute can be set to an engine or a connection
+    (with future=True).
+
+    Using a connection is useful, to wrap everything an instance does into
+    a transaction, by setting it to a connection in a transaction, e.g.:
+
+      engine = create_engine(...)
+      with engine.connect() as connection:
+        with connection.begin():
+          avt = AttributeValueTables(connection)
+          # ...
+          session = Session(bind=connection)
+          # ... use the same transaction also for other ORM operations
+    """
+    self.connectable = connectable
+    with Session(connectable) as session:
+      inspector = inspect(connectable)
+      self._init_attributes_maps(inspector, session)
 
   @property
   def table_suffixes(self):
@@ -107,7 +122,8 @@ class AttributeValueTables():
   def tablesuffix(tablename):
     pfx = AttributeValueMixin.__tablepfx__
     if not tablename.startswith(pfx):
-      raise RuntimeError(f"Table name does not start with prefix {pfx}")
+      raise RuntimeError(f"Table name ({tablename}) does not "+\
+                         f"start with prefix {pfx}")
     return tablename[len(pfx):]
 
   def table_attributes(self, tablename):
@@ -138,7 +154,8 @@ class AttributeValueTables():
 
     Return value:
       {"tables" =>
-        {tablename => {"vcols": {attrname => vcols, ...},
+        {tablename => {"attrs": [...],
+                       "vcols_to_set": [...],
                        "ccols_to_set": [...],
                        "ccols_to_unset": [...]},
           ...},
@@ -151,24 +168,87 @@ class AttributeValueTables():
       t_sfx = self._a2t[aname]
       tn = self.tablename(t_sfx)
       if tn not in result["tables"]:
-        result["tables"][tn] = {"vcols": {}, "ccols_to_set": [],
-                                "ccols_to_unset": []}
-      vcolnames = _vcolnames(aname, self._t2a[t_sfx][aname])
-      result["tables"][tn]["vcols"][aname] = vcolnames
+        result["tables"][tn] = {"vcols_to_set": [], "attrs": [],
+                                "ccols_to_set": [], "ccols_to_unset": []}
+      vcolnames = self._vcolnames(aname, self._t2a[t_sfx][aname])
+      result["tables"][tn]["vcols_to_set"] += vcolnames
+      result["tables"][tn]["attrs"].append(aname)
       result["vcols"] += vcolnames
-    for tn, tdata in result:
+    for tn, tdata in result["tables"].items():
       t_sfx = self.tablesuffix(tn)
       for g_name, g_members in self._t2g[t_sfx].items():
-        if all(aname in result["tables"][tn]["vcols"] for aname in g_members):
+        if all(aname in result["tables"][tn]["attrs"] for aname in g_members):
           # whole group case
-          result["tables"][tn]["ccols_to_set"].append(_gcolname(aname))
+          result["tables"][tn]["ccols_to_set"].append(self._gcolname(g_name))
           result["tables"][tn]["ccols_to_unset"] += \
-              [_ccolname(aname) for aname in g_members]
+              [self._ccolname(aname) for aname in g_members]
         else:
           result["tables"][tn]["ccols_to_set"] += \
-              [_ccolname(aname) for aname in result["tables"][tn]["vcols"] \
+              [self._ccolname(aname) for aname in result["tables"][tn]["attrs"] \
                                 if aname in g_members]
     return result
+
+  def load_computation(self, computation_id, attributes, inputfile,
+                       tmpsfx = "temporary"):
+    """
+    Loads data into a temporary table using LOAD DATA, then updates the
+    attributes tables with the data and deletes the temporary table.
+    """
+    if tmpsfx in self._t2a:
+      raise RuntimeError("Cannot create temporary table using "+\
+                         f"tmpsfx = '{tmpsfx}' as it already exist")
+    for name in attributes:
+      if name not in self._a2t:
+        raise RuntimeError(f"Attribute {name} does not exist")
+    tmpklass = type(self.classname(tmpsfx), (AttributeValueMixin, Base),
+                   { "__tablesfx__": tmpsfx})
+    tmpname = tmpklass.__tablename__
+    tmptable = tmpklass.metadata.tables[tmpname]
+    tmptable.create(self.connectable)
+    with Session(self.connectable) as session:
+      coldefs = []
+      for name in attributes:
+        adef = session.get(AttributeDefinition, name)
+        a_datatypes = self._parse_datatype_def(adef.datatype)
+        coldefs += self._vcoldefs(name, a_datatypes)
+      session.execute(text(f"ALTER TABLE {tmpname} "+\
+                           f"ADD COLUMN ({self._coldefstr(coldefs)})"))
+      session.execute(text(f"LOAD DATA LOCAL INFILE '{inputfile}' "+\
+                           f"INTO TABLE {tmpname}"))
+      locations = self.locations_for_attributes(attributes)
+      for tablename, tabledata in locations["tables"].items():
+        columns = ["accession"]
+        columns += [cn if cn in tabledata["vcols_to_set"] else "@dummy" \
+                    for cn in locations["vcols"]]
+        columns_str ="("+",".join(columns)+") "
+        session.execute(text(f"LOAD DATA LOCAL INFILE '{inputfile}' "+\
+                             f"IGNORE INTO TABLE {tablename}"+\
+                             f"{columns_str}"))
+        colsets = [(f"{tablename}.{col}", f"{tmpname}.{col}") \
+                     for col in tabledata["vcols_to_set"]]
+        colsets += [(f"{tablename}.{col}", ":computation_id") \
+                     for col in tabledata["ccols_to_set"]]
+        colsets += [(f"{tablename}.{col}", "NULL") \
+                     for col in tabledata["ccols_to_unset"]]
+        colsets_str = ", ".join([f"{a} = {b}" for a, b in colsets])
+        session.execute(text(f"UPDATE {tablename} INNER JOIN {tmpname} "+\
+                             f"USING(accession) SET {colsets_str}"),
+                             {"computation_id":computation_id})
+      session.commit()
+    tmptable.drop(self.connectable)
+
+  def _drop_table(self, sfx):
+    """
+    Drop table with suffix <sfx>
+    """
+    sfx = self.normalize_suffix(sfx)
+    if sfx not in self._t2a:
+      raise RuntimeError(f"Cannot drop table: no table has suffix {sfx}")
+    klass = self.get_class(sfx)
+    klass.metadata.tables[klass.__tablename__].drop(self.connectable)
+    del self._t2a[sfx]
+    del self._t2g[sfx]
+    del self._ncols[sfx]
 
   def create_table(self, sfx):
     """
@@ -179,7 +259,7 @@ class AttributeValueTables():
       raise RuntimeError(f"Cannot create table: suffix {sfx} is not unique")
     klass = type(self.classname(sfx), (AttributeValueMixin, Base),
                  { "__tablesfx__": sfx})
-    klass.metadata.tables[klass.__tablename__].create(bind=self.engine)
+    klass.metadata.tables[klass.__tablename__].create(self.connectable)
     self._t2a[sfx] = Counter()
     self._t2g[sfx] = {}
     self._ncols[sfx] = 1
@@ -189,7 +269,7 @@ class AttributeValueTables():
     Class reflecting table with suffix <sfx>
     """
     return Table(self.tablename(self.normalize_suffix(sfx)), Base.metadata,
-                 autoload_with=self.engine)
+                 autoload_with=self.connectable)
 
   def new_suffix(self) -> str:
     """
@@ -230,6 +310,15 @@ class AttributeValueTables():
     if nelems == 1: return [f"{a_name}_v"]
     else:           return [f"{a_name}_v{i}" for i in range(nelems)]
 
+  @classmethod
+  def _vcoldefs(cls, a_name, a_datatypes):
+    return [(cn, dt) for cn, dt in zip(\
+        cls._vcolnames(a_name, len(a_datatypes)), a_datatypes)]
+
+  @staticmethod
+  def _coldefstr(coldefs):
+    return ",".join([f"{n} {dt}" for n, dt in coldefs])
+
   @staticmethod
   def _ccolname(a_name):
     return a_name+"_c"
@@ -237,40 +326,6 @@ class AttributeValueTables():
   @staticmethod
   def _gcolname(grp_name):
     return grp_name+"_g"
-
-  def _create_attr_cols(self, a_name, a_datatypes, g_name, t_sfx):
-    if a_name in self._a2t:
-      raise RuntimeError(f"Attribute {a_name} exists already in table"+\
-                         self._a2t[a_name])
-    colnames = self._vcolnames(a_name, len(a_datatypes))
-    coldefs = [f"{cn} {dt}" for cn, dt in zip(colnames, a_datatypes)]
-    coldefs.append(self._ccolname(a_name) + " " + str(self.C_ID_TYPE))
-    if g_name and (g_name not in self._t2g[t_sfx]):
-      coldefs.append(self._gcolname(g_name) + " " + str(self.C_ID_TYPE))
-      self._t2g[t_sfx][g_name] = {a_name}
-    coldefs_str = ", ".join(coldefs)
-    tn = self.tablename(t_sfx)
-    with self.engine.begin() as tr:
-      tr.execute(text(f"ALTER TABLE {tn} ADD COLUMN ({coldefs_str})"))
-    self._t2a[t_sfx][a_name] = len(a_datatypes)
-    self._a2t[a_name] = t_sfx
-    self._ncols[t_sfx] += len(coldefs)
-
-  def _destroy_attr_cols(self, a_name, a_datatypes, g_name, t_sfx):
-    colnames = self._vcolnames(a_name, len(a_datatypes))
-    colnames.append(self._ccolname(a_name))
-    tn = self.tablename(t_sfx)
-    if g_name:
-      self._t2g[t_sfx][g_name].remove(a_name)
-      if len(self._t2g[t_sfx]) == 0:
-        del self._t2g[t_sfx][g_name]
-        colnames.append(self._gcolname(g_name))
-    with self.engine.begin() as tr:
-      dstr = ", ".join([f"DROP COLUMN {cn}" for cn in colnames])
-      tr.execute(text(f"ALTER TABLE {tn} {dstr}"))
-    del self._t2a[t_sfx][a_name]
-    del self._a2t[a_name]
-    self._ncols[t_sfx] -= len(colnames)
 
   @staticmethod
   def _parse_datatype_def(datatype_def):
@@ -313,26 +368,56 @@ class AttributeValueTables():
 
     e.g. Boolean[8];Integer;String(12);BINARY(16)[2]
     """
-    a_datatypes = self._parse_datatype_def(datatype_def)
-    t_sfx = self._place_for_new_attr(len(a_datatypes),
-                                     kwargs.get("computation_group"))
+    if name in self._a2t:
+      raise RuntimeError(f"Attribute {name} exists already, in table"+\
+                         self._a2t[name])
     adef = AttributeDefinition(name = name,
                                datatype = datatype_def, **kwargs)
-    session = sessionmaker(bind=self.engine)()
-    session.add(adef)
-    self._create_attr_cols(name, a_datatypes, adef.computation_group, t_sfx)
-    session.commit()
+    a_datatypes = self._parse_datatype_def(datatype_def)
+    grp = adef.computation_group
+    t_sfx = self._place_for_new_attr(len(a_datatypes), grp)
+    tn = self.tablename(t_sfx)
+    coldefs = self._vcoldefs(name, a_datatypes)
+    coldefs.append((self._ccolname(name), self.C_ID_TYPE))
+    if grp and (grp not in self._t2g[t_sfx]):
+      coldefs.append((self._gcolname(grp), self.C_ID_TYPE))
+      self._t2g[t_sfx][grp] = {name}
+    with Session(self.connectable) as session:
+      session.add(adef)
+      session.execute(text(f"ALTER TABLE {tn} "+\
+                           f"ADD COLUMN ({self._coldefstr(coldefs)})"))
+      session.commit()
+    self._t2a[t_sfx][name] = len(a_datatypes)
+    self._a2t[name] = t_sfx
+    self._ncols[t_sfx] += len(coldefs)
 
   def destroy_attribute(self, name):
-    session = sessionmaker(bind=self.engine)()
-    adef=session.query(AttributeDefinition).filter(
-        AttributeDefinition.name==name).first()
+    """
+    Drop the columns for the attribute with given name and delete
+    the attribute definition row.
+    """
     if name not in self._a2t:
       raise RuntimeError(f"Attribute {name} does not exist")
-    self._destroy_attr_cols(name, self._parse_datatype_def(adef.datatype),
-                            adef.computation_group, self._a2t[name])
-    session.delete(adef)
-    session.commit()
+    with Session(self.connectable) as session:
+      adef = session.get(AttributeDefinition, name)
+      ncols = len(self._parse_datatype_def(adef.datatype))
+      grp = adef.computation_group
+      t_sfx = self._a2t[name]
+      colnames = self._vcolnames(name, ncols)
+      colnames.append(self._ccolname(name))
+      tn = self.tablename(t_sfx)
+      if grp:
+        self._t2g[t_sfx][grp].remove(name)
+        if len(self._t2g[t_sfx]) == 0:
+          del self._t2g[t_sfx][grp]
+          colnames.append(self._gcolname(grp))
+      dstr = ", ".join([f"DROP COLUMN {cn}" for cn in colnames])
+      session.execute(text(f"ALTER TABLE {tn} {dstr}"))
+      del self._t2a[t_sfx][name]
+      del self._a2t[name]
+      self._ncols[t_sfx] -= len(colnames)
+      session.delete(adef)
+      session.commit()
 
   @staticmethod
   def _check_column(k, edt, cols, desc):
@@ -344,42 +429,43 @@ class AttributeValueTables():
                        f"found {dt}, expected {edt}")
 
   def check_consistency(self):
-    session = sessionmaker(bind=self.engine)()
-    inspector = inspect(self.engine)
-    self._init_attributes_maps()
-    unexpected_adef = session.execute(select(AttributeDefinition).where(
-                      AttributeDefinition.name.notin_(
-                        self.attribute_names))).all()
-    if unexpected_adef:
-      raise ValueError("Some attribute definitions do not correspond to "+
-                       "columns in the attribute_value tables:\n"+
-                       f"{unexpected_adef}")
-    for sfx in self.table_suffixes:
-      cols = {c["name"]: c for c in inspector.get_columns(self.tablename(sfx))}
-      for aname in self._t2a[sfx]:
-        adef = session.execute(\
-          select(AttributeDefinition).\
-            where(AttributeDefinition.name==aname)).scalars().one()
-        self._check_column(self._ccolname(aname), self.C_ID_TYPE, cols,
-                      f"computation ID of attribute {aname}")
-        datatypes = self._parse_datatype_def(adef.datatype)
-        if adef.computation_group:
-          if adef.computation_group not in self._t2g[sfx]:
-            raise RuntimeError("Column for computation group "+\
-                f"{adef.computation_group} of attribute {aname} "+\
-                f"not found in table {self.tablename(sfx)}")
-        if len(datatypes) == 1:
-          self._check_column(self._vcolnames(aname, 1)[0], datatypes[0], cols,
-                        f"value column of attribute {aname}")
-        else:
-          vcolnames = self._vcolnames(aname, len(datatypes))
-          for i, edt in enumerate(datatypes):
-            self._check_column(vcolnames[i], edt, cols,
-                          f"{i} element of value of attribute {aname}")
-      for gname, group_members in self._t2g[sfx].items():
-        if len(group_members) == 0:
-          raise RuntimeError(f"Computation ID column for group {gname} "+\
-              f"found in table {self.tablename(sfx)}, but no attribute "+\
-              "of this group in the table.")
-        self._check_column(self._gcolname(gname), self.C_ID_TYPE, cols,
-                      f"computation ID of attribute group {gname}")
+    with Session(self.connectable) as session:
+      inspector = inspect(self.connectable)
+      self._init_attributes_maps(inspector, session)
+      unexpected_adef = session.execute(select(AttributeDefinition).where(
+                        AttributeDefinition.name.notin_(
+                          self.attribute_names))).all()
+      if unexpected_adef:
+        raise ValueError("Some attribute definitions do not correspond to "+
+                         "columns in the attribute_value tables:\n"+
+                         f"{unexpected_adef}")
+      for sfx in self.table_suffixes:
+        cols = {c["name"]: c for \
+            c in inspector.get_columns(self.tablename(sfx))}
+        for aname in self._t2a[sfx]:
+          adef = session.execute(\
+            select(AttributeDefinition).\
+              where(AttributeDefinition.name==aname)).scalars().one()
+          self._check_column(self._ccolname(aname), self.C_ID_TYPE, cols,
+                        f"computation ID of attribute {aname}")
+          datatypes = self._parse_datatype_def(adef.datatype)
+          if adef.computation_group:
+            if adef.computation_group not in self._t2g[sfx]:
+              raise RuntimeError("Column for computation group "+\
+                  f"{adef.computation_group} of attribute {aname} "+\
+                  f"not found in table {self.tablename(sfx)}")
+          if len(datatypes) == 1:
+            self._check_column(self._vcolnames(aname, 1)[0], datatypes[0], cols,
+                          f"value column of attribute {aname}")
+          else:
+            vcolnames = self._vcolnames(aname, len(datatypes))
+            for i, edt in enumerate(datatypes):
+              self._check_column(vcolnames[i], edt, cols,
+                            f"{i} element of value of attribute {aname}")
+        for gname, group_members in self._t2g[sfx].items():
+          if len(group_members) == 0:
+            raise RuntimeError(f"Computation ID column for group {gname} "+\
+                f"found in table {self.tablename(sfx)}, but no attribute "+\
+                "of this group in the table.")
+          self._check_column(self._gcolname(gname), self.C_ID_TYPE, cols,
+                        f"computation ID of attribute group {gname}")

@@ -21,10 +21,6 @@ Options:
                            plugin, if changed (default: fail if changed)
   --replace-report-record  replace existing db record for the computation
                            report, if changed (default: fail if changed)
-  --scored, -s     results file has a float score column (default: False)
-  --ignore, -i     use IGNORE on repeated primary key (default: REPLACE)
-  --dropkeys, -k   drop non-unique indices before inserting
-                   and re-compute them after inserting
   --verbose, -v    be verbose
   --version, -V    show script version
   --help, -h       show this help message
@@ -32,57 +28,47 @@ Options:
 from docopt import docopt
 from schema import Schema, And, Or, Use, Optional
 import os
-from lib import snake, mysql, sqlwriter, mod, plugins
+from lib import snake, mod, plugins, db
 import yaml
 import MySQLdb
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, select, inspect
+from sqlalchemy.orm import Session
 from dbschema.attribute import AttributeDefinition, AttributeValueTables
+from dbschema.plugin_description import PluginDescription
+from dbschema.computation_report import ComputationReport
 
-def insert_sql(tablename, columns, replace_columns=None):
-  statement = f"INSERT INTO {tablename} ("
-  statement += ", ".join(columns)
-  statement += ") VALUES("
-  statement += ", ".join(["%("+c+")s" for c in columns])
-  statement += ")"
-  if replace_columns:
-    statement +=" ON DUPLICATE KEY UPDATE "
-    statement += ", ".join(f"{c}=VALUES({c})" for c in replace_columns)
-  statement += ";"
-  return statement
+def different_fields(obj1, obj2):
+  result = []
+  for c in inspect(obj1).mapper.c:
+    v1 = getattr(obj1, c.name)
+    v2 = getattr(obj2, c.name)
+    if v1 != v2:
+      result.append((c, v1, v2))
+  return result
 
-def check_data_consistency(existing, data, desc, advice):
-  for k, v in existing.items():
-    if v != data.get(k, v):
-      raise RuntimeError(f"Inconsistency in {desc} data\n"+\
-          f"Field '{k}' in existing record: {v}\n"+\
-          f"Field '{k}' in provided file: {data[k]}\n"+\
-          advice)
+def insert_update_or_compare(session, klass, newdata, primarykeys, replace, msg):
+  newrow = klass(**newdata)
+  oldrow = session.get(klass, primarykeys)
+  if oldrow:
+    if replace:
+      session.merge(newrow)
+    else:
+      diff = different_fields(newrow, oldrow)
+      if diff:
+        raise RuntimeError(f"{msg}\nDifferences:\n"+
+        "\n".join([f"  new {c}: {v1}\n  old {c}: {v2}" \
+                   for c, v1, v2 in diff]))
+  else:
+    session.add(newrow)
 
-def insert_or_check(cursor, tablename, data, primary_key, replace,
-                    desc, advice):
-  columns = list(data.keys())
-  if replace:
-    replace = columns.copy()
-    for key in primary_key:
-      replace.remove(key)
-  statement = insert_sql(tablename, columns, replace)
-  try:
-    cursor.execute(statement, data)
-  except MySQLdb.IntegrityError:
-    where = " AND ".join([f"{k} = %({k})s" for k in primary_key])
-    cursor.execute(f"SELECT * from {tablename} WHERE {where};", data)
-    check_data_consistency(cursor.fetchone(), data, desc, advice)
-  return data
+def process_plugin_description(session, plugin, replace):
+  insert_update_or_compare(session, PluginDescription, plugins.metadata(plugin),
+      [plugin.ID, plugin.VERSION], replace,
+      "Plugin metadata changed, without a version change\n"
+      "Please use the --replace-plugin-record option or increase the "+\
+      "plugin version number")
 
-def process_plugin_description(cursor, plugin, replace):
-  insert_or_check(cursor, "pr_plugin_description",
-                  plugins.metadata(plugin), ["ID", "VERSION"],
-                  replace, "plugin description",
-                  "Please either use the --replace-plugin-record option or "+\
-                  "increase the plugin version number\n")
-
-def check_plugin_key_consistency(data, plugin):
+def check_plugin_key(data, plugin):
   for key in ["ID", "VERSION"]:
     report_value = data["plugin_"+key.lower()]
     exp_value = getattr(plugin, key)
@@ -91,50 +77,28 @@ def check_plugin_key_consistency(data, plugin):
           f"{key} from the plugin module: {exp_value}\n"+\
           f"{key} from the computation report: {report_value}\n")
 
-def process_computation_report(cursor, reportfn, exp_plugin_data, replace):
+def process_computation_report(session, reportfn, plugin, replace):
   data = yaml.safe_load(reportfn)
-  check_plugin_key_consistency(data, exp_plugin_data)
-  insert_or_check(cursor, "pr_computation_report", data, ["uuid"], replace,
-                  "computation report",
-                  "Please either use the --replace-report-record option\n")
+  check_plugin_key(data, plugin)
+  insert_update_or_compare(session, ComputationReport, data, data["uuid"],
+      replace, "The computation report was already stored in the database "+\
+          "with a different content.\n"
+          "Please either use the --replace-report-record option to "+\
+          "replace the previous content.")
   return data["uuid"]
 
-def locate_attr_columns(args, attribute_names):
-  connstr = "".join(["mysql+mysqldb://", args["<dbuser>"],
-                     ":", args["<dbpass>"], "@localhost/",
-                     args["<dbname>"], "?unix_socket=",
-                     args["<dbsocket>"]])
-  engine = create_engine(connstr, echo=True)
-  avt = AttributeValueTables(engine)
-  return avt.locations_for_attributes(attribute_names)
-
 def main(args):
-  db = mysql.connect(args)
-  cursor = db.cursor(MySQLdb.cursors.DictCursor)
-  plugin = mod.importer(args["<plugin>"], args["--verbose"])
-  process_plugin_description(cursor, plugin,
-                   args["--replace-plugin-record"])
-  computation_id = process_computation_report(cursor, args["<report>"],
-                      plugin, args["--replace-report-record"])
-  locations = locate_attr_columns(args, plugin.OUTPUT)
-  for tablename, tlocations in locations["tables"].items():
-    fixed_data = {}
-    for cn in tlocations["ccols_to_set"]:
-      fixed_data[cn] = computation_id
-    for cn in tlocations["ccols_to_unset"]:
-      fixed_data[cn] = None
-    skipfields = []
-    for i, cn in locations["vcols"]:
-      if not cn in tlocations["vcols"]:
-        skipfields.append(i+1)
-    statements = sqlwriter.load_data_sql(args["<results>"], tablename,
-                      tlocations["vcols"],
-                      skipfields, fixed_data, args["--ignore"],
-                      args["--dropkeys"], False, "")
-    for statement in statements:
-      cursor.execute(statement, fixed_data)
-  db.commit()
-  cursor.close()
+  engine = create_engine(db.connstr_from(args), echo=True, future=True)
+  with engine.connect() as connection:
+    with connection.begin():
+      session = Session(bind=connection)
+      plugin = mod.py_or_nim(args["<plugin>"], args["--verbose"])
+      process_plugin_description(session, plugin,
+                                 args["--replace-plugin-record"])
+      computation_id = process_computation_report(session, args["<report>"],
+                          plugin, args["--replace-report-record"])
+      avt = AttributeValueTables(connection)
+      avt.load_computation(computation_id, plugin.OUTPUT, args["<results>"])
 
 def validated(args):
   schema = Schema({"<dbuser>": And(str, len),
@@ -146,8 +110,6 @@ def validated(args):
                    "<plugin>": And(str, open),
                    "--replace-plugin-record": Or(None, True, False),
                    "--replace-report-record": Or(None, True, False),
-                   "--ignore": Or(None, True, False),
-                   "--dropkeys": Or(None, True, False),
                    Optional(str): object})
   return schema.validate(args)
 
@@ -155,8 +117,7 @@ if "snakemake" in globals():
   args = snake.args(snakemake,
         config=["<dbuser>", "<dbpass>", "<dbname>"],
         input=["<dbsocket>", "<results>", "<report>", "<plugin>"],
-        params=["--replace-plugin-record", "--replace-report-record",
-                "--ignore", "--dropkeys"])
+        params=["--replace-plugin-record", "--replace-report-record"])
   main(validated(args))
 elif __name__ == "__main__":
   args = docopt(__doc__, version="0.1")
