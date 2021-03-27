@@ -21,6 +21,7 @@ Options:
                    not present in the YAML file (be careful, DANGEROUS!)
   --check          check consistency of definition records and attribute columns
   --update         update definitions if changed
+  --testmode       use the parameters for tests
   --verbose, -v    be verbose
   --version, -V    show script version
   --help, -h       show this help message
@@ -34,36 +35,48 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from dbschema.attribute import AttributeDefinition, AttributeValueTables
 
+def update(connection, definitions):
+  if definitions:
+    session = Session(connection)
+    select_adefs = select(AttributeDefinition)
+    for adef in session.execute(select_adefs).scalars().all():
+      if adef.name in definitions:
+        for fname, fvalue in definitions[adef.name].items():
+          if fname == "datatype":
+            if adef.datatype != fvalue:
+              raise RuntimeError(f"Cannot update {adef.name} definition "+\
+                  "as datatype changes are not allowed (previous: "+\
+                  f"{adef.datatype}, current: {fvalue})")
+          else:
+            setattr(adef, fname, fvalue)
+        session.add(adef)
+    session.commit()
+
+def drop(avt, definitions):
+  for aname in avt.attribute_names:
+    if not definitions or aname not in definitions:
+      avt.destroy_attribute(aname)
+
+def insert(avt, definitions):
+  if definitions:
+    for aname, adef in definitions.items():
+      if aname not in avt.attribute_names:
+        adef = adef.copy()
+        adt = adef["datatype"]
+        del adef["datatype"]
+        avt.create_attribute(aname, adt, **adef)
+
 def main(args):
-  engine = create_engine(db.connstr_from(args), echo=True, future=True)
+  engine = create_engine(db.connstr_from(args),
+                         echo=args["--verbose"], future=True)
   with engine.connect() as connection:
     with connection.begin():
-      session = Session(bind=connection)
       avt = AttributeValueTables(connection)
-      if args["--check"]:
-        avt.check_consistency()
-      if args["--update"]:
-        for adef in session.execute(select(AttributeDefinition)).scalars().all():
-          if adef.name in args["<definitions>"]:
-            for fieldname, fieldvalue in args["<definitions>"][adef.name].items():
-              if fieldname == "datatype":
-                if adef.datatype != fieldvalue:
-                  raise RuntimeError(f"Cannot update {adef.name} definition as "+\
-                      "datatype changes are not allowed (previous value: "+\
-                      f"{adef.datatype}, current value: {fieldvalue})")
-              else:
-                setattr(adef, fieldname, fieldvalue)
-            session.add(adef)
-      if args["--drop"]:
-        to_delete = set(avt.attribute_names) - set(args["<definitions>"].keys())
-        for aname in to_delete:
-          avt.destroy_attribute(aname)
-      for aname, adef in args["<definitions>"].items():
-        if aname not in avt.attribute_names:
-          adt = adef["datatype"]
-          del adef["datatype"]
-          avt.create_attribute(aname, adt, **adef)
-      session.commit()
+      if args["--testmode"]: avt.TARGET_N_COLUMNS = 9
+      if args["--check"]:  avt.check_consistency()
+      if args["--update"]: update(connection, args["<definitions>"])
+      if args["--drop"]:   drop(avt, args["<definitions>"])
+      insert(avt, args["<definitions>"])
 
 def validated(args):
   schema = Schema({"<dbuser>": And(str, len),
@@ -73,6 +86,7 @@ def validated(args):
                    "<definitions>": And(str, Use(open),
                                     Use(yaml.safe_load)),
                    "--update": Or(None, True, False),
+                   "--testmode": Or(None, True, False),
                    "--drop": Or(None, True, False),
                    "--check": Or(None, True, False),
                    Optional(str): object})
@@ -82,7 +96,7 @@ if "snakemake" in globals():
   args = snake.args(snakemake,
         config=["<dbuser>", "<dbpass>", "<dbname>"],
         input=["<dbsocket>", "<definitions>"],
-        params=["--drop", "--check", "--update"])
+        params=["--drop", "--check", "--update", "--testmode"])
   main(validated(args))
 elif __name__ == "__main__":
   args = docopt(__doc__, version="0.1")

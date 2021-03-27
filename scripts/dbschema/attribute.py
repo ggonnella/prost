@@ -281,8 +281,7 @@ class AttributeValueTables():
         return str(i)
       i += 1
 
-  #TARGET_N_COLUMNS = 64
-  TARGET_N_COLUMNS = 6
+  TARGET_N_COLUMNS = 64
   C_ID_TYPE = sqlalchemy.types.BINARY(16)
 
   def _place_for_new_attr(self, ncols, computation_group):
@@ -408,7 +407,7 @@ class AttributeValueTables():
       tn = self.tablename(t_sfx)
       if grp:
         self._t2g[t_sfx][grp].remove(name)
-        if len(self._t2g[t_sfx]) == 0:
+        if len(self._t2g[t_sfx][grp]) == 0:
           del self._t2g[t_sfx][grp]
           colnames.append(self._gcolname(grp))
       dstr = ", ".join([f"DROP COLUMN {cn}" for cn in colnames])

@@ -35,7 +35,7 @@ def main(args):
                      ":", args["<dbpass>"], "@localhost/",
                      args["<dbname>"], "?unix_socket=",
                      args["<dbsocket>"]])
-  engine = create_engine(connstr, echo=True)
+  engine = create_engine(connstr, echo=args["--verbose"])
   spec = importlib.util.spec_from_file_location("models", args["<file>"])
   models = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(models)

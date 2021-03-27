@@ -4,6 +4,7 @@ Helper methods for working with the database
 
 from sqlalchemy.engine.url import URL
 import os
+from collections import defaultdict
 
 DB_DRIVER="mysql+mysqldb"
 DB_HOST="localhost"
@@ -22,13 +23,14 @@ def _connstr(u,p,d,s):
   return URL.create(drivername=DB_DRIVER, username=u, password=p,
                     database=d, host=DB_HOST, query={"unix_socket":s})
 
+ARGSKEYS = ["<dbuser>", "<dbpass>", "<dbname>", "<dbsocket>"]
+
 def connstr_from(args) -> str:
   """
   MySQL/MariaDB connection string based on the values of the args '<dbuser>',
   '<dbpass>', '<dbname>' and '<dbsocket>'
   """
-  keys = ["<dbuser>", "<dbpass>", "<dbname>", "<dbsocket>"]
-  return _connstr(*[args.get(k) for k in keys])
+  return _connstr(*[args.get(k) for k in ARGSKEYS])
 
 def connstr_env(varname) -> str:
   """
@@ -36,3 +38,11 @@ def connstr_env(varname) -> str:
   dbuser dbpass dbname and dbsocket, space-separated
   """
   return _connstr(*os.environ[varname].split(" "))
+
+def args_from_env(varname):
+  """
+  Creates an args variable for running the main() function
+  of a script, using the db connection data from an env variable
+  """
+  return defaultdict(lambda:None,
+      {k:v for k, v in zip(ARGSKEYS, os.environ[varname].split(" "))})
