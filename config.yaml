@@ -4,5 +4,6 @@ bacdive_pass: bacdivepass
 dbuser: prostuser
 dbpass: prostpass
 dbname: prostdb
+testdbname: prosttestdb
 dbrootpass: root
 sysuser: gonnella

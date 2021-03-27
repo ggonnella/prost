@@ -67,6 +67,7 @@ rule create_db:
   shell:
     """
     COMMANDS="CREATE DATABASE \`{config[dbname]}\`; "
+    COMMANDS+="CREATE DATABASE \`{config[testdbname]}\`; "
     echo ${{COMMANDS}}
     echo "${{COMMANDS}}" | mysql -u root \
                            --password={config[dbrootpass]} \
@@ -85,6 +86,8 @@ rule create_dbuser:
     COMMANDS+="GRANT USAGE ON *.* TO '{config[dbuser]}'@localhost "
     COMMANDS+="  IDENTIFIED BY '{config[dbpass]}'; "
     COMMANDS+="GRANT ALL PRIVILEGES ON \`{config[dbname]}\`.* TO"
+    COMMANDS+="  '{config[dbuser]}'@localhost; "
+    COMMANDS+="GRANT ALL PRIVILEGES ON \`{config[testdbname]}\`.* TO"
     COMMANDS+="  '{config[dbuser]}'@localhost; "
     COMMANDS+="FLUSH PRIVILEGES;"
     echo ${{COMMANDS}}
@@ -117,16 +120,6 @@ rule stop_server:
                        --socket={input.socket} shutdown
     """
 
-rule root_connect:
-  input:
-    ancient(rules.set_root_password.output.done),
-    socket=ancient(rules.start_server.output.socket)
-  shell:
-    """
-    mysql --socket={input.socket} --database={config[dbname]} \
-          -u root --password={config[dbrootpass]}
-    """
-
 rule show_processes:
   input:
     ancient(rules.set_root_password.output.done),
@@ -148,6 +141,28 @@ rule connect:
           --database={config[dbname]} \
           -u {config[dbuser]} \
           --password={config[dbpass]}
+    """
+
+rule tconnect:
+  input:
+    ancient(rules.create_dbuser.output.done),
+    socket=ancient(rules.start_server.output.socket)
+  shell:
+    """
+    mysql --socket={input.socket} \
+          --database={config[testdbname]} \
+          -u {config[dbuser]} \
+          --password={config[dbpass]}
+    """
+
+rule root_connect:
+  input:
+    ancient(rules.set_root_password.output.done),
+    socket=ancient(rules.start_server.output.socket)
+  shell:
+    """
+    mysql --socket={input.socket} --database={config[dbname]} \
+          -u root --password={config[dbrootpass]}
     """
 
 #
