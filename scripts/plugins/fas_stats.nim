@@ -92,7 +92,7 @@ proc process_file2(fasfile: string, tab_a: array[256, uint8],
       process_buffer2(buffer, nread, result.a, result.b, state, tab_a, tab_b)
     f.close()
 
-proc compute(filename: string, force_uncompressed = false: bool):
+proc compute(filename: string, force_uncompressed: bool = false):
              tuple[results: seq[string], logs: seq[string]] {.exportpy.} =
   let (gc, total) = block:
     if force_uncompressed:
