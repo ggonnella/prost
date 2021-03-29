@@ -30,7 +30,7 @@ def main(arguments):
                      ":", arguments["<dbpass>"], "@localhost/",
                      arguments["<dbname>"], "?unix_socket=",
                      arguments["<dbsocket>"]])
-  engine = create_engine(connstr, echo=True)
+  engine = create_engine(connstr, echo=args["--verbose"])
   Session = sessionmaker(bind=engine)
   session = Session()
   subtree = session.query(NtNode)
