@@ -88,7 +88,8 @@ def process_computation_report(session, reportfn, plugin, replace):
   return data["uuid"]
 
 def main(args):
-  engine = create_engine(db.connstr_from(args), echo=True, future=True)
+  engine = create_engine(db.connstr_from(args),
+                         echo=args["--verbose"], future=True)
   with engine.connect() as connection:
     with connection.begin():
       session = Session(bind=connection)

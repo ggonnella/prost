@@ -38,6 +38,8 @@ class AttributeDefinition(Base):
 class AttributeValueMixin:
   accession = Column(String(64), primary_key = True)
   __table_args__ = utf8_cs_args
+  __table_args__["extend_existing"] = True
+  __table_args__["autoload_replace"] = True
   __tablepfx__ = "pr_attribute_value_t"
 
   @declared_attr
@@ -200,10 +202,14 @@ class AttributeValueTables():
     for name in attributes:
       if name not in self._a2t:
         raise RuntimeError(f"Attribute {name} does not exist")
-    tmpklass = type(self.classname(tmpsfx), (AttributeValueMixin, Base),
-                   { "__tablesfx__": tmpsfx})
-    tmpname = tmpklass.__tablename__
-    tmptable = tmpklass.metadata.tables[tmpname]
+    tmpname = self.tablename(tmpsfx)
+    if tmpname in Base.metadata.tables:
+      tmptable = Base.metadata.tables[tmpname]
+    else:
+      tmpklass = type(self.classname(tmpsfx), (AttributeValueMixin, Base),
+                     { "__tablesfx__": tmpsfx})
+      tmpname = tmpklass.__tablename__
+      tmptable = tmpklass.metadata.tables[tmpname]
     tmptable.create(self.connectable)
     with Session(self.connectable) as session:
       coldefs = []
