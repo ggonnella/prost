@@ -44,4 +44,3 @@ def args(snakemake, **kwargs):
   for k, v in kwargs.items():
     setargs(args, getattr(snakemake, k), *v)
   return args
-

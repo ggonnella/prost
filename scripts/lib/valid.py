@@ -1,6 +1,9 @@
 from schema import Or, And, Use
 import sys
 import gzip
+import yaml
+import socket
+import getpass
 
 def open_maygz(fname):
   ft = open(fname, "rb")
@@ -25,3 +28,11 @@ outfile_or_none = Or(None, Use(lambda f: open(f, "w")))
 
 comments = Or(And(None, Use(lambda v: "#")), str)
 delimiter = Or(And(None, Use(lambda v: "\t")), And(str, len))
+
+user = Or(str, And(None, Use(lambda n: getpass.getuser())))
+system = Or(str, And(None, Use(lambda n: socket.gethostname())))
+yamlfile = Or(And(None, Use(lambda n: {})),
+              And(Use(open), Use(lambda fn: yaml.safe_load(fn))))
+
+colnum = And(Use(int), lambda n: n>0)
+optcolnum = Or(And(None, Use(lambda n: 1)), colnum)
