@@ -10,7 +10,31 @@ VERSION = "1.0"
 INPUT = "anything"
 OUTPUT =  ["echo"]
 
+class EchoState():
+  def __init__(self):
+    self.state = 0
+    print(f"initializing echo state: {self.state}...")
+
+  def __str__(self):
+    self.inc()
+    return f"echo state: {self.state}"
+
+  def inc(self):
+    self.state += 1
+
+  def finalize(self):
+    self.inc()
+    print(f"finalizing echo state: {self.state}...")
+
+def initialize():
+  return EchoState()
+
+def finalize(state):
+  state.finalize()
+
 def compute(unit, **kwargs):
+  if kwargs.get("state"):
+    print(str(kwargs["state"]))
   return [unit], None
 
 def compute_id(filename):

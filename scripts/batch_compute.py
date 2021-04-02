@@ -66,8 +66,10 @@ from glob import glob
 from lib import snake, mod, valid, reports
 import tqdm
 
-def compute(plugin, input_id, output_id, params,
+def compute(plugin, state, input_id, output_id, params,
             outfile, logfile, report, n_processed, verbose):
+  if state:
+    params["state"] = state
   try:
     results, logs = plugin.compute(input_id, **params)
   except Exception as err:
@@ -123,15 +125,20 @@ def main(args):
   report = reports.Report.from_args(plugin, args)
   outfile, logfile = open_files(args["--out"], args["--log"])
   n_processed = 0
+  params = args["--params"]
+  state = plugin.initialize(**params.get("state", {})) \
+      if hasattr(plugin, "initialize") else None
   for unit_name in tqdm.tqdm(input_units(args)):
     input_id, output_id = compute_ids(unit_name, args["<globpattern>"], idproc)
     if output_id in skip:
       skip.remove(output_id)
     else:
-      compute(plugin, input_id, output_id, args["--params"],
+      compute(plugin, state, input_id, output_id, params,
               outfile, logfile, report, n_processed, args["--verbose"])
       n_processed += 1
   report.finalize(n_processed)
+  if hasattr(plugin, "finalize"):
+    plugin.finalize(state)
   close_files(outfile, logfile)
 
 def validated(args):
