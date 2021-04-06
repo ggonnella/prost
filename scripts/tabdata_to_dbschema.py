@@ -15,16 +15,15 @@ Required columns in input file (output format of json_to_tabdata):
 
 Options:
   --out, -o <FILENAME>  output file (default: stdout)
-  --verbose, -v             be verbose
-  --version, -V             show script version
-  --help, -h                show this help message
+{common}
 """
 
 from docopt import docopt
-from schema import Schema, Use, And, Or, Optional
+from schema import Use, And, Or
 import json
 import textwrap
 import sys
+from lib import scripts, snake
 
 def emit_prelude(args):
   args["--out"].write(textwrap.dedent("""\
@@ -104,11 +103,11 @@ def main(args):
 def validated(args):
   opt_out = Or(And(None, Use(lambda f: sys.stdout)),
                    Use(lambda f: open(f, "w")))
-  schema = Schema({"<tsv>": open, "--out": opt_out, Optional(str): object})
-  return schema.validate(args)
+  return scripts.validate(args, {"<tsv>": open, "--out": opt_out})
 
 if "snakemake" in globals():
-  main(validated({"<tsv>": snakemake.input[0], "--out": snakemake.output[0]}))
+  args = snake.args(snakemake, input=["<tsv"], output=["--out"])
+  main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
   main(validated(args))

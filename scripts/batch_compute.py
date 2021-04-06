@@ -53,17 +53,15 @@ Options:
   --log, -l FNAME   write logs to the given file (default: stderr);
                     if the file exists, the output is appended
 {report_opts}
-  --verbose, -v     be verbose
-  --version, -V     show script version
-  --help, -h        show this help message
+{common}
 """
 
 from docopt import docopt
-from schema import Schema, Use, Optional, Or, And
+from schema import Or
 import os
 import sys
 from glob import glob
-from lib import snake, mod, valid, reports
+from lib import snake, mod, valid, reports, scripts
 import tqdm
 
 def compute(plugin, state, input_id, output_id, params,
@@ -142,32 +140,23 @@ def main(args):
   close_files(outfile, logfile)
 
 def validated(args):
-  args_schema = reports.args_schema.copy()
-  args_schema.update({
-                   "<globpattern>": Or(None, str),
-                   "<idsfile>": Or(None, os.path.exists),
-                   "--idsproc": Or(None, os.path.exists),
-                   "<col>": valid.optcolnum,
-                   "<plugin>": os.path.exists,
-                   "--verbose": Or(None, bool),
-                   "--out": Or(None, str),
-                   "--log": Or(None, str),
-                   "--skip": Or(None, os.path.exists),
-                   Optional(str): object})
-  return Schema(args_schema).validate(args)
+  return scripts.validate(args, reports.args_schema,
+      {"<globpattern>": Or(None, str), "<idsfile>": Or(None, os.path.exists),
+       "--idsproc": Or(None, os.path.exists), "<col>": valid.optcolnum,
+       "<plugin>": os.path.exists, "--out": Or(None, str),
+       "--log": Or(None, str), "--skip": Or(None, os.path.exists)})
 
 if "snakemake" in globals():
-  args = reports.snake_args(snakemake)
-  args.update(snake.args(snakemake,
-        input=["<plugin>", "--idsproc"],
-        log=["--out", "--log"],
-        params=["<globpattern>", "<idsfile>", "<col>",
-                "--verbose"]))
+  args = snake.args(snakemake, reports.snake_args,
+           input=["<plugin>", "--idsproc"],
+           log=["--out", "--log"],
+           params=["<globpattern>", "<idsfile>", "<col>", "--verbose"])
   if args["--out"] and os.path.exists(args["--out"]):
     args["--skip"] = args["--out"]
   else:
     args["--skip"] = None
   main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__.format(report_opts=reports.args_doc), version="0.1")
+  args = docopt(__doc__.format(report_opts=reports.args_doc,
+    common=scripts.args_doc), version="0.1")
   main(validated(args))

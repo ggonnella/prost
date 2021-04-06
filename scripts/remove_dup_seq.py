@@ -10,13 +10,11 @@ Arguments:
                (chunk.*) containing the sequence files (*_genomic.fna.gz)
                i.e. "/chunk.*/*_genomic.fna.gz" is appended to it
 Options:
-  --verbose, -v   be verbose
-  --help, -h      show this help message
-  --version, -V   show the script version
+{common}
 """
 from docopt import docopt
-from schema import Schema, Optional
 from glob import glob
+from lib import scripts, snake
 import os
 import sys
 
@@ -52,11 +50,11 @@ def main(args):
                              f"({sz_f} != {sz_keep})\n")
 
 def validated(args):
-  schema = Schema({
-    "<globpattern>": str,
-    Optional(str): object})
-  return schema.validate(args)
+  return scripts.validate(args, {"<globpattern>": str})
 
-if __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+if "snakemake" in globals():
+  args = snake.args(snakemake, params = ["<globpattern>"])
+  main(validated(args))
+elif __name__ == "__main__":
+  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
   main(validated(args))

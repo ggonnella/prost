@@ -1,7 +1,7 @@
 import yaml
 import uuid
 from datetime import datetime
-from lib import snake, valid
+from lib import valid
 from schema import Or
 
 reasons = ["new_data", "new_attributes", "improve_precision"]
@@ -17,9 +17,8 @@ args_doc = """\
   --reason R        reason field for the report (default: None)
   --params FNAME    YAML file with additional parameters (default: None)"""
 
-def snake_args(snakemake):
-  return snake.args(snakemake, input=["--params"], output=["--report"],
-              params=["--user", "--system", "--reason"])
+snake_args = {"input": ["--params"], "output": ["--report"],
+    "params": ["--user", "--system", "--reason"]}
 
 class Report():
 

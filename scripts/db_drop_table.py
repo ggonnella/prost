@@ -4,25 +4,19 @@ Bulk insert NCBI taxonomy data from dump files.
 The table must exist already.
 
 Usage:
-  db_drop_table.py [options] <dbuser> <dbpass> <dbname> <dbsocket> <table>
+  db_drop_table.py [options] {db_args_usage} <table>
 
 Arguments:
-  dbuser:    database user to use
-  dbpass:    password of the database user
-  dbname:    database name
-  dbsocket:  connection socket file
+{db_args}
   table:     table name
 
 Options:
-  --verbose, -v    be verbose
-  --version, -V    show script version
-  --help, -h       show this help message
+{common}
 """
 import MySQLdb
 from docopt import docopt
-from schema import Schema, And, Use, Optional
-from dbschema.ncbi_taxonomy_db import tablename2class
-import os
+from schema import And
+from lib import snake, scripts, db
 
 def main(args):
   db = MySQLdb.connect(host="localhost",
@@ -38,22 +32,12 @@ def main(args):
   db.commit()
 
 def validated(args):
-  schema = Schema({"<dbuser>": And(str, len),
-                   "<dbpass>": And(str, len),
-                   "<dbname>": And(str, len),
-                   "<dbsocket>": And(str, len, os.path.exists),
-                   "<table>": And(str, len),
-                   Optional(str): object})
-  return schema.validate(args)
+  return scripts.validate(args, db.args_schema, {"<table>": And(str, len)})
 
 if "snakemake" in globals():
-  args = {
-    "<dbuser>": snakemake.config["dbuser"],
-    "<dbpass>": snakemake.config["dbpass"],
-    "<dbname>": snakemake.config["dbname"],
-    "<dbsocket>": snakemake.input.socket,
-    "<table>": snakemake.params.table}
+  args = snake.args(snakemake, db.snake_args, params = ["<table>"])
   main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+  args = docopt(__doc__.format(db_args = db.args_doc, common = scripts.args_doc,
+    db_args_usage = db.args_usage), version="0.1")
   main(validated(args))

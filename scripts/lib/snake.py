@@ -39,8 +39,44 @@ def setargs(args, src, *names):
       key = key.replace("-","_")
     args[name] = src.get(key)
 
-def args(snakemake, **kwargs):
+def args(snakemake, *dicts, **kwargs):
+  """
+  Create a args dict similar to the result of docopt,
+  using the snakemake variable.
+
+  First usage: one provides named arguments, which are lists of strings,
+  where the name of the argument is the property of "snakemake" where
+  to take the value from. The values are arguments keys, from which the keys
+  of the snakemake property are computed, by removing the "--" or "<>".
+
+  e.g.
+    args(snakemake, input=["<a>, "--b"], params=["--c", "<d>"],
+                    output=["--e", "<f>"], config=["<g>, "--h"],
+                    log=["--i", "<j>"])
+
+  Second usage: instead or in addition to the previous, one provides
+  dicts which contains lists of strings with key strings which are the
+  properties of "snakemake". This allows to pass pre-defined lists of
+  argument keys.
+
+  e.g.
+    args(snakemake, {"input": ["<a>"], "params": ["--b"]},
+                    {"input": ["<c>, "--d"], "output": ["<e>"]},
+                    input=["<f>, "--g"], params=["--h"])
+  or:
+    args(snakemake, my_module.predefined_args_list,
+                    other_module.other_list,
+                    input=["<f>, "--g"], params=["--h"])
+
+  It is possible to override a key passed as one of the dicts, in one of the
+  following dicts, or in the kwargs. However, one should avoid to use the same
+  key multiple times in the same dict or in the keyed args, as in this case
+  the behaviour is random!
+  """
   args = {}
+  for d in dicts:
+    for k, v in d:
+      setargs(args, getattr(snakemake, k), *v)
   for k, v in kwargs.items():
     setargs(args, getattr(snakemake, k), *v)
   return args

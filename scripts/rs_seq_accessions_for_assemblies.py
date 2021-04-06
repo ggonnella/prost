@@ -11,9 +11,7 @@ Arguments:
 
 Options:
   --update, -u F            file with previous results, to update
-  --verbose, -v             be verbose
-  --version, -V             show script version
-  --help, -h                show this help message
+{common}
 """
 
 from docopt import docopt
@@ -22,7 +20,8 @@ import os
 import sys
 import tqdm
 import glob
-from schema import Schema, Use, Optional, Or, And
+from lib import snake, scripts
+from schema import Or
 
 def extract_fastaids(localfn):
   # zcat localfn | grep -P '^>' | cut -f1 -d' ' | cut -c2-
@@ -49,7 +48,6 @@ def compute_targets(globpattern, known_results):
   return result
 
 def compute_accessions(targets, outfile):
-  noferrors = 0
   for asmacc, fn in tqdm.tqdm(targets):
     sys.stderr.write(f"Processing {fn}...\n")
     seqaccs = extract_fastaids(fn)
@@ -74,18 +72,11 @@ def main(args):
   close_outfile(outfile, args)
 
 def validated(args):
-  schema = Schema({
-    Optional("--update"): Or(None, os.path.exists),
-    "<globpattern>": str,
-    Optional(str): object})
-  return schema.validate(args)
+  return scripts.validate(args, {"--update": Or(None, os.path.exists)})
 
 if "snakemake" in globals():
-  args = {
-      "--update": snakemake.params.get("prev", None),
-      "<globpattern>": snakemake.params.globpattern,
-    }
+  args = snake.args(snakemake, params=[("--update", "prev"), "<globpattern>"])
   main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
   main(validated(args))

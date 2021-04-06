@@ -5,13 +5,30 @@ Helper methods for working with the database
 from sqlalchemy.engine.url import URL
 import os
 from collections import defaultdict
+from schema import And
+
+args_doc = """\
+  dbuser:       database user to use
+  dbpass:       password of the database user
+  dbname:       database name
+  dbsocket:     connection socket file"""
+
+args_usage="<dbuser> <dbpass> <dbname> <dbsocket>"
+
+args_schema = {"<dbuser>": And(str, len),
+               "<dbpass>": And(str, len),
+               "<dbname>": And(str, len),
+               "<dbsocket>": And(str, len, os.path.exists)}
+
+snake_args = {"config": ["<dbuser>", "<dbpass>", "<dbname>"],
+              "input": ["<dbsocket>"]}
 
 DB_DRIVER="mysql+mysqldb"
 DB_HOST="localhost"
 
 def _connstr(u,p,d,s):
   if not(s):
-    raise RuntimeError(f"DB unix socket not provided")
+    raise RuntimeError("DB unix socket not provided")
   elif not os.path.exists(s):
     raise RuntimeError(f"DB unix socket does not exist: {s}")
   elif not(u):

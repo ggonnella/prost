@@ -19,14 +19,13 @@ Arguments:
 
 Options:
   --done VALUE    last ID list page already processed
-  --verbose, -v   be verbose
-  --help, -h      show this help message
-  --version, -V   show the script version
+{common}
 """
 import requests
 from requests.auth import HTTPBasicAuth
 from docopt import docopt
-from schema import Schema, Use, Or, Optional
+from schema import Use, Or
+from lib import snake, scripts
 import sys
 import re
 
@@ -40,51 +39,51 @@ def get(url, headers, credentials, verbose):
     response.raise_for_status()
   return response.json()
 
-def compute_first_url(baseurl, arguments, headers, credentials):
+def compute_first_url(baseurl, args, headers, credentials):
   prevurl = baseurl
   url = None
-  if arguments["--done"] is not None:
+  if args["--done"] is not None:
     # determine in this case the "next" to be processed
     # by reading it from the last processed one
-    donepage = arguments["--done"]
+    donepage = args["--done"]
     if donepage > 0:
       prevurl = f"{prevurl}?page={donepage}"
-    json = get(prevurl, headers, credentials, arguments["--verbose"])
+    json = get(prevurl, headers, credentials, args["--verbose"])
     url = json['next']
-    if arguments["--verbose"]:
+    if args["--verbose"]:
       sys.stderr.write("# Accessing last processed URL to determine next URL\n")
     if url is None:
-      if arguments["--verbose"]:
+      if args["--verbose"]:
         sys.stderr.write("# No next URL to process\n")
         sys.stderr.write("# Everything already processed\n")
     else:
-      if arguments["--verbose"]:
+      if args["--verbose"]:
         sys.stderr.write("# Next URL is: {}\n".format(url))
   return prevurl, url
 
-def main(arguments):
-  if arguments["--verbose"]:
+def main(args):
+  if args["--verbose"]:
     sys.stderr.write("# This script updates the list of IDs from Bacdive\n")
-    sys.stderr.write(f"# Username: {arguments['<username>']}\n")
-    sys.stderr.write(f"# Password: {arguments['<password>']}\n")
+    sys.stderr.write(f"# Username: {args['<username>']}\n")
+    sys.stderr.write(f"# Password: {args['<password>']}\n")
 
   headers = {'Accept': 'application/json'}
   baseurl='https://bacdive.dsmz.de/api/bacdive/bacdive_id/'
-  credentials = HTTPBasicAuth(arguments["<username>"], arguments["<password>"])
-  prevurl, url = compute_first_url(baseurl, arguments, headers, credentials)
+  credentials = HTTPBasicAuth(args["<username>"], args["<password>"])
+  prevurl, url = compute_first_url(baseurl, args, headers, credentials)
 
   if url:
     while url:
-      json = get(url, headers, credentials, arguments["--verbose"])
-      if arguments["--verbose"]:
+      json = get(url, headers, credentials, args["--verbose"])
+      if args["--verbose"]:
         sys.stderr.write("# Processing results...\n")
       for result in json['results']:
-        if arguments["--verbose"]:
+        if args["--verbose"]:
           sys.stderr.write("## Result: \n"+ result['url'])
-        arguments["<idlist>"].write(result['url'].split('/')[-2]+"\n")
+        args["<idlist>"].write(result['url'].split('/')[-2]+"\n")
       prevurl = url
       url = json['next']
-      if arguments["--verbose"]:
+      if args["--verbose"]:
         if url is None:
           sys.stderr.write("# No next URL to process\n")
           sys.stderr.write("# Everything processed\n")
@@ -93,14 +92,16 @@ def main(arguments):
   m = re.search(r"\d+", prevurl)
   print(m.group(0))
 
-def validated(arguments):
-  schema = Schema({
+def validated(args):
+  return scripts.validate(args, {
     "<idlist>": Use(lambda fn: open(fn, "a+")),
     "<username>": str, "<password>": str,
-    "--done": Or(None, int),
-    Optional(str): object})
-  return schema.validate(arguments)
+    "--done": Or(None, int)})
 
-if __name__ == "__main__":
-  arguments = docopt(__doc__, version="0.1")
-  main(validated(arguments))
+if "snakemake" in globals():
+  args = snake.args(snakemake, log=["<idlist>"],
+                    params=["<username>", "<password>", "--done"])
+  main(validated(args))
+elif __name__ == "__main__":
+  args = docopt(__doc__.format(common=scripts.args_doc), version="0.1")
+  main(validated(args))

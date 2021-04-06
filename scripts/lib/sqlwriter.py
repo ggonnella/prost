@@ -16,6 +16,26 @@ def _column_names_from_dbschema(filename, tablename):
   klass = dbschema.tablename2class[tablename]
   return klass.file_column_names()
 
+def n_header_lines(filename: str, pfx: str = "#") -> int:
+  """Number of header lines, identified by a given prefix
+
+  Args:
+    filename: data of the table file
+    pfx:      header lines prefix, defaults to "#"
+
+  Returns:
+    0 if pfx is empty, otherwise number of initial lines starting with pfx
+  """
+  result = 0
+  if not pfx:
+    return 0
+  with open(filename) as f:
+    for line in f:
+      if line.startswith(pfx):
+        result += 1
+      else:
+        return result
+
 def load_data_sql(datafile: str, tablename: str, columns: Union[List[str], str],
                   skipfields: List[int] = [],
                   fixed_data: Union[None, str, Dict[str, Any]] = None,
@@ -56,7 +76,7 @@ def load_data_sql(datafile: str, tablename: str, columns: Union[List[str], str],
     sql += r"FIELDS TERMINATED BY '\t|\t' "
     sql += r"LINES TERMINATED BY '\t|\n' "
   if isinstance(columns, str):
-    columns = _column_names_from_db_schema(columns, tablename)
+    columns = _column_names_from_dbschema(columns, tablename)
   if skipfields:
     for n in sorted(skipfields):
       columns.insert(n-1, "@dummy")
@@ -67,7 +87,7 @@ def load_data_sql(datafile: str, tablename: str, columns: Union[List[str], str],
     setelems = [f"{k} = %({k})s" for k in fixed_data.keys()]
     sql += "SET "+", ".join(setelems) + " "
   if headerpfx:
-    n_skip = tables.n_header_lines(datafile, headerpfx)
+    n_skip = n_header_lines(datafile, headerpfx)
     if n_skip:
       sql += f"IGNORE {n_skip} LINES "
   sql += ";"
@@ -76,25 +96,3 @@ def load_data_sql(datafile: str, tablename: str, columns: Union[List[str], str],
     result.append(f"ALTER TABLE {tablename} ENABLE KEYS;")
   result.append("SET foreign_key_checks = 1;")
   return result
-
-def n_header_lines(filename: str, pfx: str = "#") -> int:
-  """Number of header lines, identified by a given prefix
-
-  Args:
-    filename: data of the table file
-    pfx:      header lines prefix, defaults to "#"
-
-  Returns:
-    0 if pfx is empty, otherwise number of initial lines starting with pfx
-  """
-  result = 0
-  if not pfx:
-    return 0
-  with open(filename) as f:
-    for line in f:
-      if line.startswith(pfx):
-        result += 1
-      else:
-        return result
-
-

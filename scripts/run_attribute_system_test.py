@@ -186,7 +186,7 @@ def check_values_after_run(run):
 def drop_dangling_attribute_tables():
   engine = create_engine(db.connstr_env(ENVVAR), echo=ECHO, future=True)
   with engine.connect() as connection:
-    connection.execute(text(f"DROP TABLE IF EXISTS pr_attribute_definition"))
+    connection.execute(text("DROP TABLE IF EXISTS pr_attribute_definition"))
     for n in [0,1,2,3, "temporary"]:
       connection.execute(text(f"DROP TABLE IF EXISTS pr_attribute_value_t{n}"))
 

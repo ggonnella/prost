@@ -38,13 +38,13 @@ Rows are divided by lines containing only '###'
 
 Options:
   --out, -o <FILENAME>  output file (default: stdout)
-  --verbose, -v         be verbose
-  --version, -V         show script version
-  --help, -h            show this help message
+{common}
 """
 
+import sys
 from docopt import docopt
-from schema import Schema, Use, And, Or, Optional
+from lib import scripts, snake
+from schema import Use, And, Or
 import json
 
 NormalizedColnames = {
@@ -87,21 +87,17 @@ def validated(args):
   opt_out = Or(And(None, Use(lambda f: sys.stdout)),
                    Use(lambda f: open(f, "w")))
   colnum = And(Use(int), lambda i: i>0, Use(lambda i: i-1))
-  schema = Schema({"<tsv>": Use(open),
+  return scripts.validate(args, {"<tsv>": Use(open),
                   "<colnum>": colnum,
                   "<pfx>": len,
                   "<idcol>": Or(None, len),
                   "<idcolnum>": Or(None, colnum),
-                  "--out": opt_out,
-                  Optional(str): object})
-  return schema.validate(args)
+                  "--out": opt_out})
 
 if "snakemake" in globals():
-  main(validated({"<tsv>": snakemake.input[0], "--out": snakemake.output[0],
-                  "<colnum>": snakemake.params.colnum,
-                  "<pfx>": snakemake.params.pfx,
-                  "<idcol>": snakemake.params.idcol,
-                  "<idcolnum>": snakemake.params.idcolnum}))
+  args = snake.args(snakemake, input=["<tsv>"], output=["out"],
+      params=["<colnum>", "<pfx>", "<idcol>", "<idcolnum>"])
+  main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
   main(validated(args))

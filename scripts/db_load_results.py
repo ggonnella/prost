@@ -3,14 +3,11 @@
 Load computation results into DB from a TSV file and a computation report.
 
 Usage:
-  db_load_results.py [options] <dbuser> <dbpass> <dbname> <dbsocket>
+  db_load_results.py [options] {db_args_usage}
                                <results> <report> <plugin>
 
 Arguments:
-  dbuser:    database user to use
-  dbpass:    password of the database user
-  dbname:    database name
-  dbsocket:  connection socket file
+{db_args}
   results:   results file, tsv with columns:
              accession, attr_class, attr_instance, value[, score]
   report:    computation report file (yaml format)
@@ -21,19 +18,15 @@ Options:
                            plugin, if changed (default: fail if changed)
   --replace-report-record  replace existing db record for the computation
                            report, if changed (default: fail if changed)
-  --verbose, -v    be verbose
-  --version, -V    show script version
-  --help, -h       show this help message
+{common}
 """
 from docopt import docopt
-from schema import Schema, And, Or, Use, Optional
-import os
-from lib import snake, mod, plugins, db
+from schema import And, Or, Use
+from lib import snake, mod, plugins, db, scripts
 import yaml
-import MySQLdb
-from sqlalchemy import create_engine, select, inspect
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import Session
-from dbschema.attribute import AttributeDefinition, AttributeValueTables
+from dbschema.attribute import AttributeValueTables
 from dbschema.plugin_description import PluginDescription
 from dbschema.computation_report import ComputationReport
 
@@ -88,8 +81,8 @@ def process_computation_report(session, reportfn, plugin, replace):
   return data["uuid"]
 
 def main(args):
-  engine = create_engine(db.connstr_from(args),
-                         echo=args["--verbose"], future=True)
+  engine = create_engine(db.connstr_from(args), echo=args["--verbose"],
+                         future=True)
   with engine.connect() as connection:
     with connection.begin():
       session = Session(bind=connection)
@@ -102,24 +95,19 @@ def main(args):
       avt.load_computation(computation_id, plugin.OUTPUT, args["<results>"])
 
 def validated(args):
-  schema = Schema({"<dbuser>": And(str, len),
-                   "<dbpass>": And(str, len),
-                   "<dbname>": And(str, len),
-                   "<dbsocket>": And(str, len, os.path.exists),
-                   "<results>": And(str, open),
+  return scripts.validate(args, db.args_schema,
+                  {"<results>": And(str, open),
                    "<report>": And(str, Use(open)),
                    "<plugin>": And(str, open),
                    "--replace-plugin-record": Or(None, True, False),
-                   "--replace-report-record": Or(None, True, False),
-                   Optional(str): object})
-  return schema.validate(args)
+                   "--replace-report-record": Or(None, True, False)})
 
 if "snakemake" in globals():
-  args = snake.args(snakemake,
-        config=["<dbuser>", "<dbpass>", "<dbname>"],
-        input=["<dbsocket>", "<results>", "<report>", "<plugin>"],
+  args = snake.args(snakemake, db.snake_args,
+        input=["<results>", "<report>", "<plugin>"],
         params=["--replace-plugin-record", "--replace-report-record"])
   main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+  args = docopt(__doc__.format(db_args=db.args_doc, db_args_usage=db.args_usage,
+               common=scripts.args_doc), version="0.1")
   main(validated(args))

@@ -3,14 +3,11 @@
 Load data into DB from a TSV file.
 
 Usage:
-  db_load_data.py [options] <dbuser> <dbpass> <dbname> <dbsocket>
+  db_load_data.py [options] {db_args_usage}
                             <tsv> <table> <columns> [<columns>...]
 
 Arguments:
-  dbuser:    database user to use
-  dbpass:    password of the database user
-  dbname:    database name
-  dbsocket:  connection socket file
+{db_args}
   tsv:       tsv file to load
   table:     table name
   columns:   either a list of columns or the path to a python module
@@ -35,14 +32,11 @@ Options:
                    (tsv with lines: column_name <TAB> value)
   --dropkeys, -k   drop non-unique indices before inserting
                    and re-compute them after inserting
-  --verbose, -v    be verbose
-  --version, -V    show script version
-  --help, -h       show this help message
+{common}
 """
 from docopt import docopt
-from schema import Schema, And, Or, Use, Optional
-import os
-from lib import snake, mysql, sqlwriter
+from schema import And, Or, Use
+from lib import scripts, snake, db, mysql, sqlwriter
 
 def main(args):
   headerpfx = args["--headerpfx"] if args["--skipheader"] else ""
@@ -53,11 +47,8 @@ def main(args):
   mysql.connect_and_execute(args, statements)
 
 def validated(args):
-  schema = Schema({"<dbuser>": And(str, len),
-                   "<dbpass>": And(str, len),
-                   "<dbname>": And(str, len),
-                   "<dbsocket>": And(str, len, os.path.exists),
-                   "<tsv>": And(str, open),
+  return scripts.validate(args, db.args_schema,
+                  {"<tsv>": And(str, open),
                    "<table>": And(str, len),
                    "<columns>": And(list, len),
                    "--dbschema": Or(None, True, False),
@@ -65,18 +56,15 @@ def validated(args):
                    "--dropkeys": Or(None, True, False),
                    "--skipfields": Or(And(None, Use(lambda n: [])),
                      And(str, Use(lambda l: [int(e) for e in l.split(",")]),
-                         lambda l: all(e > 0 for e in l)))
+                         lambda l: all(e > 0 for e in l))),
                    "--ncbidmp": Or(None, True, False),
                    "--skipheader": Or(None, True, False),
                    "--headerpfx": Or(And(None, Use("#")), And(str, len)),
-                   "--set": Or(None, open),
-                   Optional(str): object})
-  return schema.validate(args)
+                   "--set": Or(None, open)})
 
 if "snakemake" in globals():
-  args = snake.args(snakemake,
-        config=["<dbuser>", "<dbpass>", "<dbname>"],
-        input=["<dbsocket>", "<tsv>", ("--set", "common_values")],
+  args = snake.args(snakemake, db.snake_args,
+        input=["<tsv>", ("--set", "common_values")],
         params=["<table>", "<columns>", "--dbschema", "--ignore",
                 "--dropkeys", "--ncbidmp", "--skipheader", "--headerpfx",
                 "--skipfields"])
@@ -85,5 +73,6 @@ if "snakemake" in globals():
     args["--dbschema"] = True
   main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+  args = docopt(__doc__.format(db_args = db.args_doc, common = scripts.args_doc,
+           db_args_usage = db.args_usage), version="0.1")
   main(validated(args))

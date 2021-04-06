@@ -10,26 +10,25 @@ Arguments:
   file   file output by bacdive_show_structure.py
 
 Options:
-  --verbose, -v  be verbose
-  --version, -V  show script version
-  --help, -h     show this help message
+{common}
 """
 
 from docopt import docopt
-from schema import Schema, Use, Optional
+from lib import scripts, snake
+from schema import Use
 
 def perc(n_part, n_all):
   return "{:.1f}%".format((n_part / n_all) * 100)
 
-def main(arguments):
+def main(args):
   ids = set()
-  for line in arguments["<file>"]:
+  for line in args["<file>"]:
     elems = line.rstrip().split("\t")
     ids.add(elems[2])
   n_strains = len(ids)
   leaves = dict()
-  arguments["<file>"].seek(0)
-  for line in arguments["<file>"]:
+  args["<file>"].seek(0)
+  for line in args["<file>"]:
     elems = line.rstrip().split("\t")
     key = elems[1]
     value = elems[3]
@@ -48,10 +47,12 @@ def main(arguments):
     print(f"#{k}\ttotal\t{total}\t{perc(total, n_strains)}")
     print("")
 
-def validated(arguments):
-  schema = Schema({"<file>": Use(open), Optional(str): object})
-  return schema.validate(arguments)
+def validated(args):
+  return scripts.validate(args, {"<file>": Use(open)})
 
-if __name__ == "__main__":
-  arguments = docopt(__doc__, version="0.1")
-  main(validated(arguments))
+if "snakemake" in globals():
+  args = snake.args(snakemake, input=[("<file>", "data")])
+  main(validated(args))
+elif __name__ == "__main__":
+  args = docopt(__doc__.format(common=scripts.args_doc), version="0.1")
+  main(validated(args))

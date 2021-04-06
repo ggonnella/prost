@@ -3,29 +3,32 @@
 Given a genome, compute a statistics and compare it to taxonomic groups
 
 Usage:
-  cmpstat_taxtree.py [options] <dbuser> <dbpass> <dbname> <dbsocket> <table> <statname> <genome> <module> <taxid> <up>
+  cmpstat_taxtree.py [options] {db_args_usage}
+                     <table> <statname> <genome> <plugin> <taxid> <up>
 
 Arguments:
-  table: table where the statistics is stored
-  statname: name of the statistics
-  genome: fas.gz file of the genome of interest
-  module: module to compute the statistics
-  taxid: tax ID of the genome of interest
-  up: number of tax levels to climb up
+{db_args}
+  table:        table where the statistics is stored
+  statname:     name of the statistics
+  genome:       fas.gz file of the genome of interest
+  plugin:       plugin to compute the statistics
+  taxid:        tax ID of the genome of interest
+  up:           number of tax levels to climb up
 
 Options:
-  --verbose, -v    be verbose
-  --version, -V    show script version
-  --help, -h       show this help message
+{common}
 """
 
-from schema import Schema, And, Use, Optional
+# XXX requires update to newer plugin conventions!
+#     also it should not use stats dbschema
+
+from schema import And, Use
 from docopt import docopt
 from dbschema.ncbi_taxonomy_db import NtName
 import query_stat_for_subtree as qsfs
 import cmpstat_distribution as cmpd
 import genomestat_for_fas_gz as gffg
-import os
+from lib import snake, db, scripts
 
 def get_taxname(session, taxid):
   return session.query(NtName.name_txt).\
@@ -47,39 +50,25 @@ def main(args):
   session = qsfs.get_session(args)
   assert(session)
   node = args["<taxid>"]
-  value = float(gffg.compute_value(args["<module>"], args["<genome>"]))
+  value = float(gffg.compute_value(args["<plugin>"], args["<genome>"]))
   for i in range(args["<up>"]):
     compare_to_subtree(session, node, value,
         args["<statname>"], args["<table>"])
     node = qsfs.traverse_up(session, node, 1)
 
 def validated(args):
-  schema = Schema({"<dbuser>": And(str, len),
-                   "<dbpass>": And(str, len),
-                   "<dbname>": And(str, len),
-                   "<dbsocket>": And(str, len, os.path.exists),
-                   "<taxid>": Use(int),
-                   "<table>": And(str, len),
-                   "<statname>": And(str, len),
-                   "<module>": open,
-                   "<genome>": open,
-                   "<up>": Use(int),
-                   Optional(str): object})
-  return schema.validate(args)
+  return scripts.validate(args, db.args_schema,
+      {"<taxid>": Use(int), "<table>": And(str, len),
+       "<statname>": And(str, len), "<plugin>": open,
+       "<genome>": open, "<up>": Use(int)})
 
 if "snakemake" in globals():
-  args = {
-    "<dbuser>": snakemake.config["dbuser"],
-    "<dbpass>": snakemake.config["dbpass"],
-    "<dbname>": snakemake.config["dbname"],
-    "<dbsocket>": snakemake.input.socket,
-    "<taxid>": snakemake.params.taxid,
-    "<table>": snakemake.params.table,
-    "<statname>": snakemake.params.statname,
-    "<module>": snakemake.input.module,
-    "<genome>": snakemake.input.genome,
-    "<up>": snakemake.params.up}
+  args = snake.args(snakemake, db.snake_args,
+    params = ["<taxid>", "<table>", "<statname>", "<up>"],
+    input = ["<plugin>", "<genome>"])
   main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+  args = docopt(__doc__.format(db_args = db.args_doc,
+                db_args_usage = db.args_usage, common = scripts.args_doc),
+                version="0.1")
   main(validated(args))

@@ -24,16 +24,14 @@ Options:
                        default: from first line containing the delimiter
                                 (after removing the comment pfx, if any)
   --check              run module check() function on each row
-  --verbose, -v        be verbose
-  --version, -V        show script version
-  --help, -h           show this help message
+{common}
 """
 
 from docopt import docopt
-from schema import Schema, Use, Optional, Or, And
+from schema import Or
 from collections import defaultdict
 import os
-from lib import snake, valid, tables, mod
+from lib import snake, valid, tables, mod, scripts
 
 def main(args):
   counts = defaultdict(int)
@@ -47,14 +45,12 @@ def main(args):
     print(f"{k}{args['--delimiter']}{counts[k]}")
 
 def validated(args):
-  schema = Schema({"<table>": valid.maygz_or_stdin,
+  return scripts.validate(args, {"<table>": valid.maygz_or_stdin,
                    "<module>": os.path.exists,
                    "--verbose": Or(None, bool),
                    "--comments": valid.comments,
                    "--delimiter": valid.delimiter,
-                   "--check": Or(None, bool),
-                   Optional(str): object})
-  return schema.validate(args)
+                   "--check": Or(None, bool)})
 
 if "snakemake" in globals():
   args = snake.args(snakemake,
@@ -63,5 +59,5 @@ if "snakemake" in globals():
       )
   main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
   main(validated(args))

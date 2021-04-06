@@ -12,9 +12,7 @@ Arguments:
 Options:
   --complete, -c            only "Complete Genome" and marked as "latest"
   --update, -u F            file with previous results, to update
-  --verbose, -v             be verbose
-  --version, -V             show script version
-  --help, -h                show this help message
+{common}
 """
 
 from docopt import docopt
@@ -22,7 +20,8 @@ import sh
 import os
 import sys
 import tqdm
-from schema import Schema, Use, Optional, Or, And
+from lib import snake, scripts
+from schema import Or
 
 def is_complete(elems):
   """
@@ -126,21 +125,15 @@ def main(args):
   close_outfile(outfile, args)
 
 def validated(args):
-  schema = Schema({
-    Optional("--update"): Or(None, str),
-    "<summary>": open,
-    Optional("--complete"): Or(None, True, False),
-    Optional(str): object})
-  return schema.validate(args)
+  return scripts.validate(args, {"--update": Or(None, str),
+    "<summary>": open, "--complete": Or(None, bool)})
 
 if "snakemake" in globals():
-  args = {
-      "--update": snakemake.params.get("prev", None),
-      "<summary>": snakemake.input.summary,
-      "--complete": True,
-    }
+  args = snake.args(snakemake, params=[("--update", "prev")],
+                    input=["<summary>"])
+  args["--complete"]=True
   main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
   main(validated(args))
 

@@ -10,13 +10,12 @@ Arguments:
   listfn:    file with list to compare value of interest to, one value per line
 
 Options:
-  --verbose, -v    be verbose
-  --version, -V    show script version
-  --help, -h       show this help message
+{common}
 """
 
 from docopt import docopt
-from schema import Schema, Or, Use, Optional
+from schema import Or, Use
+from lib import snake, scripts
 import scipy.stats
 
 def values_from_listfile(f):
@@ -38,13 +37,13 @@ def cmp_to_distri(value, distri):
   zscoremax = (d.minmax[1]-d.mean)/stdev
   zscore = (value-d.mean)/stdev
   percentile = scipy.stats.percentileofscore(distri, value)
-  print(f"Description of the group of values:")
+  print("Description of the group of values:")
   print(f"  Number of values in the group: {d.nobs}")
   print(f"  Range (min/avg/max): {d.minmax[0]}--{d.mean}--{d.minmax[1]}")
   print(f"  Standard deviation: {stdev}")
   print(f"  Z-score(min): {zscoremin}")
   print(f"  Z-score(max): {zscoremax}")
-  print(f"Comparison to the value of interest:")
+  print("Comparison to the value of interest:")
   print(f"  Z-score(value): {zscore}")
   print(f"  Z-score(value) - Z-score(min): {zscore-zscoremin}")
   print(f"  Z-score(max) - Z-score(value): {zscoremax-zscore}")
@@ -93,18 +92,13 @@ def main(args):
   cmp_to_distri(value, values)
 
 def validated(args):
-  schema = Schema({
-    "<value>": Or(Use(int), Use(float)),
-    "<listfn>": Use(open),
-    Optional(str): object})
-  return schema.validate(args)
+  return scripts.validate(args, {"<value>": Or(Use(int), Use(float)),
+                          "<listfn>": Use(open)})
 
 if "snakemake" in globals():
-  args = {
-    "<value>": snakemake.params.value,
-    "<listfn>": snakemake.input.list,
-    }
+  args = snake.args(snakemake, params = ["<value>"],
+                    input=[("<listfn>", "list")])
   main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+  args = docopt(__doc__.format(common=scripts.args_doc), version="0.1")
   main(validated(args))

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Create and update a database containing
-the information from the NCBI "assembly_summary" tables.
+Compute assembly attributes and store them in the database.
 """
 
 include: "common.snake"

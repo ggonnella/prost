@@ -11,16 +11,14 @@ Arguments:
   colnum   1-based column number to use
 
 Options:
-  --verbose, -v   be verbose
-  --help, -h      show this help message
-  --version, -V   show the script version
+{common}
 """
 
 from docopt import docopt
-from schema import Schema, Use, And, Optional
+from schema import Use, And
 from collections import Counter
 import json
-import sys
+from lib import scripts, snake
 
 def json_collect_info(stdata, stinfo, key):
   if key not in stinfo:
@@ -127,20 +125,21 @@ def print_info(stinfo, level):
     print(f"{pfx}... and other {rdiff} different values "+\
         f"in {remaining} elements")
 
-def main(arguments):
+def main(args):
   info = dict()
-  for line in arguments["<tsvfile>"]:
+  for line in args["<tsvfile>"]:
     elems = line.rstrip().split("\t")
-    jdata = json.loads(elems[arguments["<colnum>"]])
+    jdata = json.loads(elems[args["<colnum>"]])
     json_collect_info(jdata, info, "\\")
   print_info(info, 0)
 
-def validated(arguments):
+def validated(args):
   colnum = And(Use(lambda i: int(i)-1), lambda i: i>=0)
-  schema = Schema({"<tsvfile>": Use(open), "<colnum>": colnum,
-                  Optional(str): object})
-  return schema.validate(arguments)
+  return scripts.validate(args, {"<tsvfile>": Use(open), "<colnum>": colnum})
 
-if __name__ == "__main__":
-  arguments = docopt(__doc__, version="0.1")
-  main(validated(arguments))
+if "snakemake" in globals():
+  args = snake.args(snakemake, params=["<colnum>"], input=["<tsvfile>"])
+  main(validated(args))
+elif __name__ == "__main__":
+  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
+  main(validated(args))

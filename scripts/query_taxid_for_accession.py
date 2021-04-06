@@ -3,34 +3,25 @@
 Output taxid for the given NCBI assembly accession.
 
 Usage:
-  query_taxid_for_accession.py [options] <dbuser> <dbpass> <dbname> <dbsocket> <accession>
+  query_taxid_for_accession.py [options] {db_args_usage}
+                               <accession>
 
 Arguments:
-  dbuser:    database user to use
-  dbpass:    password of the database user
-  dbname:    database name
-  dbsocket:  connection socket file
+{db_args}
   accession: NCBI assembly accession
 
 Options:
-  --verbose, -v    be verbose
-  --version, -V    show script version
-  --help, -h       show this help message
+{common}
 """
 
 from sqlalchemy import create_engine
 from dbschema.ncbi_assembly_summary import NcbiAssemblySummary
 from docopt import docopt
-from schema import Schema, And, Use, Or, Optional
-import os
-from sqlalchemy.orm import sessionmaker, aliased
+from lib import db, snake, scripts
+from sqlalchemy.orm import sessionmaker
 
 def main(args):
-  connstr = "".join(["mysql+mysqldb://", args["<dbuser>"],
-                     ":", args["<dbpass>"], "@localhost/",
-                     args["<dbname>"], "?unix_socket=",
-                     args["<dbsocket>"]])
-  engine = create_engine(connstr)
+  engine = create_engine(db.connstr_from(args), echo=args["--verbose"])
   Session = sessionmaker(bind=engine)
   session = Session()
   taxid = session.query(NcbiAssemblySummary.taxid).\
@@ -38,23 +29,12 @@ def main(args):
   print(taxid[0])
 
 def validated(args):
-  schema = Schema({"<dbuser>": And(str, len),
-                   "<dbpass>": And(str, len),
-                   "<dbname>": And(str, len),
-                   "<dbsocket>": And(str, len, os.path.exists),
-                   "<accession>": str,
-                   Optional(str): object})
-  return schema.validate(args)
+  return scripts.validate(args, db.args_schema, {"<accession>": str})
 
 if "snakemake" in globals():
-  args = {
-    "<dbuser>": snakemake.config["dbuser"],
-    "<dbpass>": snakemake.config["dbpass"],
-    "<dbname>": snakemake.config["dbname"],
-    "<dbsocket>": snakemake.input.socket,
-    "<accession>": snakemake.params.accession,
-    }
+  args = snake.args(snakemake, db.snake_args, params = ["<accession>"])
   main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+  args = docopt(__doc__.format(db_args = db.args_doc, common = scripts.args_doc,
+    db_args_usage = db.args_usage), version="0.1")
   main(validated(args))

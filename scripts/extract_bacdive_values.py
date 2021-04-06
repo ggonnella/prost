@@ -12,13 +12,12 @@ Arguments:
 
 Options:
   --split, -s D   split value by delimiter
-  --verbose, -v   be verbose
-  --help, -h      show this help message
-  --version, -V   show the script version
+{common}
 """
 
 from docopt import docopt
-from schema import Schema, Use, Or, Optional
+from schema import Use, Or
+from lib import scripts, snake
 import json
 
 def traverse(j, bacdive_id, pfx, last, key, split):
@@ -37,21 +36,21 @@ def traverse(j, bacdive_id, pfx, last, key, split):
       for jelem in values:
         print(jelem + "\t" + bacdive_id)
 
-def main(arguments):
-  for line in arguments["<tsv>"]:
+def main(args):
+  for line in args["<tsv>"]:
       elems = line.rstrip().split("\t")
       bacdive_id = elems[0]
       details = json.loads(elems[3])
-      traverse(details, bacdive_id, "", "", arguments["<key>"],
-          arguments["--split"])
+      traverse(details, bacdive_id, "", "", args["<key>"],
+          args["--split"])
 
-def validated(arguments):
-  schema = Schema({
-    "<tsv>": Use(open), "<key>": str,
-    "--split": Or(None, str),
-    Optional(str): object})
-  return schema.validate(arguments)
+def validated(args):
+  return scripts.validate(args, {"<tsv>": Use(open), "<key>": str,
+    "--split": Or(None, str)})
 
-if __name__ == "__main__":
-  arguments = docopt(__doc__, version=0.1)
-  main(validated(arguments))
+if "snakemake" in globals():
+  args = snake.args(snakemake, input=["<tsv>"], params=["<key>", "--split"])
+  main(validated(args))
+elif __name__ == "__main__":
+  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
+  main(validated(args))

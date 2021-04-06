@@ -15,15 +15,13 @@ Options
                    line, or be a tsv with accession in the first column
   --update, -u F   append output to file (default: output to stdout)
                    (this can be the same file as --skip or another)
-  --verbose, -v    be verbose
-  --version, -V    show script version
-  --help, -h       show this help message
+{common}
 """
 
+from lib import scripts, snake
 from docopt import docopt
-from schema import Schema, Or, Optional
+from schema import Or
 import os
-import sh
 import tqdm
 from glob import glob
 import sys
@@ -50,16 +48,13 @@ def main(args):
   if args["--update"]: outfile.close()
 
 def validated(args):
-  schema = Schema({Optional(str): object})
-  return schema.validate(args)
+  return scripts.validate(args, {"<globpattern>": str},
+      {"--skip": Or(None, str), "--update": Or(None, str)})
 
 if "snakemake" in globals():
-  args = {
-    "<module>": snakemake.input.module,
-    "<globpattern>": snakemake.params.globpattern,
-    "--skip": snakemake.params.get("skip", None),
-    "--update": snakemake.params.get("update", None)}
+  args = snake.args(snakemake, input=["<module>"], params=["<globpattern>",
+    "--skip", "--update"])
   main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
   main(validated(args))

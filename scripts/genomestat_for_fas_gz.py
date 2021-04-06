@@ -11,14 +11,13 @@ Arguments:
   genome:       name of the gzipped fasta file
 
 Options
-  --verbose, -v    be verbose
-  --version, -V    show script version
-  --help, -h       show this help message
+{common}
 """
 
 from docopt import docopt
-from schema import Schema, Or, Optional
 import importlib
+import os
+from lib import snake, scripts
 
 def compute_value(modulename, genomefn):
   spec = importlib.util.spec_from_file_location("stat_comp", modulename)
@@ -30,15 +29,12 @@ def main(args):
   print(compute_value(args["<module>"], args["<genome>"]))
 
 def validated(args):
-  schema = Schema({Optional(str): object})
-  return schema.validate(args)
+  return scripts.validate(args, {"module": os.path.exists,
+                                 "genome": os.path.exists})
 
 if "snakemake" in globals():
-  args = {
-    "<module>": snakemake.input.module,
-    "<genome>": snakemake.input.genome,
-    }
+  args = snake.args(snakemake, input=["<module>", "<genome>"])
   main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
   main(validated(args))

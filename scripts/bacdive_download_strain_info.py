@@ -18,19 +18,18 @@ Arguments:
   idlist         file containing the IDs to download
 
 Options:
-  --verbose, -v            be verbose
   --previous, -p FILENAME  text file containing previously downloaded data
-  --help, -h               show this help message
-  --version, -V            show the script version
+{common}
 """
 
 import requests
 from requests.auth import HTTPBasicAuth
 import sys
 import hashlib
+from lib import snake, scripts
 from docopt import docopt
 from datetime import datetime
-from schema import Schema, Use, Or, Optional
+from schema import Use, Or
 
 def main(args):
   if args["--verbose"]:
@@ -71,12 +70,14 @@ def main(args):
     sys.stderr.write(f"# N. IDs for which info was downloaded: {n_new_ids}\n")
 
 def validated(args):
-  schema = Schema({
-    "<idlist>": Use(open), "<username>": str, "<password>": str,
-    "--previous": Or(None, Use(open)), Optional(str): object})
-  return schema.validate(args)
+  return scripts.validate(args, {"<idlist>": Use(open), "<username>": str,
+    "<password>": str, "--previous": Or(None, Use(open))})
 
-if __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+if "snakemake" in globals():
+  args = snake.args(snakemake, input=["<idlist>"],
+                    params=["<username>", "<password>", "--previous"])
+  main(validated(args))
+elif __name__ == "__main__":
+  args = docopt(__doc__.format(common=scripts.args_doc), version="0.1")
   main(validated(args))
 

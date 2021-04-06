@@ -10,14 +10,12 @@ Arguments:
 
 Options:
   --one, -1        output only first report found
-  --verbose, -v    be verbose
-  --version, -V    show script version
-  --help, -h       show this help message
+{common}
 """
 
 from docopt import docopt
-from schema import Schema, Use, Optional, Or, And
-from lib import valid
+from schema import Or
+from lib import valid, scripts, snake
 
 def main(args):
   state = 0
@@ -36,16 +34,13 @@ def main(args):
       exit(0)
 
 def validated(args):
-  schema = Schema({"<file>": valid.maygz_or_stdin,
-                   "--one": Or(None, bool),
-                   Optional(str): object})
-  return schema.validate(args)
+  return scripts.validate(args, {"<file>": valid.maygz_or_stdin,
+                   "--one": Or(None, bool)})
 
 
 if "snakemake" in globals():
-  args = { "<file>": snakemake.input.gb,
-           "--one": snakemake.params.one}
+  args = snake.args(snakemake, input=[("<file>", "gb")], params=["--one"])
   main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
   main(validated(args))

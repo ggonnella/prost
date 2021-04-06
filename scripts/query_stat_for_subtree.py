@@ -3,22 +3,18 @@
 List values of a given stat from all taxa under a given node.
 
 Usage:
-  query_stat_for_subtree.py [options] <dbuser> <dbpass> <dbname> <dbsocket> <root> <table> <statname>
+  query_stat_for_subtree.py [options] {db_args_usage}
+                            <root> <table> <statname>
 
 Arguments:
-  dbuser:    database user to use
-  dbpass:    password of the database user
-  dbname:    database name
-  dbsocket:  connection socket file
+{db_args}
   root:      tax id of the root
   table:     table where the stat is stored
   statname:  value of the statname column
 
 Options:
   --up, -u X       go up X levels into the taxonomic tree
-  --verbose, -v    be verbose
-  --version, -V    show script version
-  --help, -h       show this help message
+{common}
 """
 
 from sqlalchemy import create_engine
@@ -26,9 +22,11 @@ from dbschema.ncbi_taxonomy_db import NtNode
 from dbschema.ncbi_assembly_summary import NcbiAssemblySummary
 from dbschema.stats import tablename2class
 from docopt import docopt
-from schema import Schema, And, Use, Or, Optional
-import os
+from lib import snake, db, scripts
+from schema import And, Use, Or
 from sqlalchemy.orm import sessionmaker, aliased
+
+# XXX it must be updated, there is no "stats" anymore
 
 def traverse_up(session, node, levels):
   """
@@ -77,11 +75,7 @@ def values_for_accessions(session, accessions, statname, table):
   return [v[0] for v in values]
 
 def get_session(args):
-  connstr = "".join(["mysql+mysqldb://", args["<dbuser>"],
-                     ":", args["<dbpass>"], "@localhost/",
-                     args["<dbname>"], "?unix_socket=",
-                     args["<dbsocket>"]])
-  engine = create_engine(connstr)
+  engine = create_engine(db.connstr_from(args), echo=args["--verbose"])
   return sessionmaker(bind=engine)()
 
 def main(args):
@@ -95,28 +89,16 @@ def main(args):
     print(value)
 
 def validated(args):
-  schema = Schema({"<dbuser>": And(str, len),
-                   "<dbpass>": And(str, len),
-                   "<dbname>": And(str, len),
-                   "<dbsocket>": And(str, len, os.path.exists),
-                   "<root>": Use(int),
+  return scripts.validate(args, db.args_schema, {"<root>": Use(int),
                    "<table>": And(str, len),
                    "<statname>": And(str, len),
-                   "--up": Or(None, Use(int)),
-                   Optional(str): object})
-  return schema.validate(args)
+                   "--up": Or(None, Use(int))})
 
 if "snakemake" in globals():
-  args = {
-    "<dbuser>": snakemake.config["dbuser"],
-    "<dbpass>": snakemake.config["dbpass"],
-    "<dbname>": snakemake.config["dbname"],
-    "<dbsocket>": snakemake.input.socket,
-    "<root>": snakemake.params.root,
-    "<table>": snakemake.params.table,
-    "<statname>": snakemake.params.statname,
-    "--up": snakemake.params.get("up", None)}
+  args = snake.args(snakemake, db.snake_args,
+           params = ["<root>", "<table>", "<statname>", "--up"])
   main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+  args = docopt(__doc__.format(db_args = db.args_doc,
+    db_args_usage = db.args_usage, common = scripts.args_doc), version="0.1")
   main(validated(args))

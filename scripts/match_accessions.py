@@ -17,54 +17,54 @@ Arguments:
 Options:
   --strip, -s    strip version number from accessions before match
   --reverse, -r  output column o2 before o1
-  --verbose, -v  be verbose
-  --help, -h     show this help message
-  --version, -V  show the script version
   --multi, -m    column m2 contains multiple accessions, comma-separated
+{common}
 """
 
 from docopt import docopt
-from schema import Schema, Use, And, Optional
-import sys
+from schema import Use, And
+from lib import snake, scripts
 
 def strip_version_number(acc_v):
   return acc_v.split(".")[0]
 
-def main(arguments):
+def main(args):
   t1data = dict()
-  for line in arguments["<t1>"]:
+  for line in args["<t1>"]:
     elems = line.rstrip().split("\t")
-    key = elems[arguments["<m1>"]]
-    if arguments["--strip"]:
+    key = elems[args["<m1>"]]
+    if args["--strip"]:
       key = strip_version_number(key)
-    value = elems[arguments["<o1>"]]
+    value = elems[args["<o1>"]]
     t1data[key]=value
-  for line in arguments["<t2>"]:
+  for line in args["<t2>"]:
     elems = line.rstrip().split("\t")
-    keys = elems[arguments["<m2>"]]
-    if arguments["--multi"]:
+    keys = elems[args["<m2>"]]
+    if args["--multi"]:
       keys = keys.split(",")
     else:
       keys = [keys]
     for key in keys:
-      if arguments["--strip"]:
+      if args["--strip"]:
         key = strip_version_number(key)
       if key in t1data:
         value1 = t1data[key]
-        value2 = elems[arguments["<o2>"]]
-        if arguments["--reverse"]:
+        value2 = elems[args["<o2>"]]
+        if args["--reverse"]:
           print(f"{value2}\t{value1}")
         else:
           print(f"{value1}\t{value2}")
 
-def validated(arguments):
+def validated(args):
   colnum = And(Use(lambda i: int(i)-1), lambda i: i>=0)
-  schema = Schema({
+  return scripts.validate(args, {
     "<t1>": Use(open), "<t2>": Use(open),
-    "<m1>": colnum, "<m2>": colnum, "<o1>": colnum, "<o2>": colnum,
-    Optional(str): object})
-  return schema.validate(arguments)
+    "<m1>": colnum, "<m2>": colnum, "<o1>": colnum, "<o2>": colnum})
 
-if __name__ == "__main__":
-  arguments = docopt(__doc__, version=0.1)
-  main(validated(arguments))
+if "snakemake" in globals():
+  args = snake.args(snakemake,
+      input=["<t1>", "<t2>"], params=["<m1>", "<m2>", "<o1>", "<o2>"])
+  main(validated(args))
+elif __name__ == "__main__":
+  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
+  main(validated(args))

@@ -7,13 +7,10 @@ Optionally remove attribute columns and definition records which are not
 present in the YAML file.
 
 Usage:
-  db_attributes.py [options] <dbuser> <dbpass> <dbname> <dbsocket> <definitions>
+  db_attributes.py [options] {db_args_usage} <definitions>
 
 Arguments:
-  dbuser:       database user to use
-  dbpass:       password of the database user
-  dbname:       database name
-  dbsocket:     connection socket file
+{db_args}
   definitions:  YAML file containing the attribute definitions
 
 Options:
@@ -22,14 +19,11 @@ Options:
   --check          check consistency of definition records and attribute columns
   --update         update definitions if changed
   --testmode       use the parameters for tests
-  --verbose, -v    be verbose
-  --version, -V    show script version
-  --help, -h       show this help message
+{common}
 """
 from docopt import docopt
-from schema import Schema, And, Or, Use, Optional
-from lib import snake, db
-import os
+from schema import And, Or, Use
+from lib import snake, db, scripts
 import yaml
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
@@ -67,8 +61,8 @@ def insert(avt, definitions):
         avt.create_attribute(aname, adt, **adef)
 
 def main(args):
-  engine = create_engine(db.connstr_from(args),
-                         echo=args["--verbose"], future=True)
+  engine = create_engine(db.connstr_from(args), echo=args["--verbose"],
+                         future=True)
   with engine.connect() as connection:
     with connection.begin():
       avt = AttributeValueTables(connection)
@@ -79,25 +73,16 @@ def main(args):
       insert(avt, args["<definitions>"])
 
 def validated(args):
-  schema = Schema({"<dbuser>": And(str, len),
-                   "<dbpass>": And(str, len),
-                   "<dbname>": And(str, len),
-                   "<dbsocket>": And(str, len, os.path.exists),
-                   "<definitions>": And(str, Use(open),
-                                    Use(yaml.safe_load)),
-                   "--update": Or(None, True, False),
-                   "--testmode": Or(None, True, False),
-                   "--drop": Or(None, True, False),
-                   "--check": Or(None, True, False),
-                   Optional(str): object})
-  return schema.validate(args)
+  return scripts.validate(args, db.args_schema,
+      {"<definitions>": And(str, Use(open), Use(yaml.safe_load)),
+       "--update": Or(None, True, False), "--testmode": Or(None, True, False),
+       "--drop": Or(None, True, False), "--check": Or(None, True, False)})
 
 if "snakemake" in globals():
-  args = snake.args(snakemake,
-        config=["<dbuser>", "<dbpass>", "<dbname>"],
-        input=["<dbsocket>", "<definitions>"],
-        params=["--drop", "--check", "--update", "--testmode"])
+  args = snake.args(snakemake, db.snake_args, input=["<definitions>"],
+                    params=["--drop", "--check", "--update", "--testmode"])
   main(validated(args))
 elif __name__ == "__main__":
-  args = docopt(__doc__, version="0.1")
+  args = docopt(__doc__.format(db_args = db.args_doc,
+    db_args_usage=db.args_usage, common=scripts.args_doc), version="0.1")
   main(validated(args))

@@ -33,13 +33,12 @@ Arguments:
   idcol:    1-based column num, IDs / primary keys
 
 Options:
-  --help, -h     show this help message
-  --version, -V  show the script version
-  --verbose, -v  be verbose
+{common}
 """
 
 from docopt import docopt
-from schema import Schema, And, Use, Optional
+from schema import And, Use
+from lib import scripts, snake
 import json
 
 def print_leaves(subtree, primarykey, pfx, last):
@@ -53,12 +52,6 @@ def print_leaves(subtree, primarykey, pfx, last):
     print("\t".join([pfx, last, primarykey,
            json.dumps(subtree)]))
 
-def validated(arguments):
-  colnum = And(Use(lambda i: int(i)-1), lambda i: i>=0)
-  schema = Schema({"<tsvfile>": Use(open),
-    "<jsoncol>": colnum, "<idcol>": colnum, Optional(str): object})
-  return schema.validate(arguments)
-
 def main(arguments):
   for line in arguments["<tsvfile>"]:
     elems = line.rstrip().split("\t")
@@ -66,6 +59,15 @@ def main(arguments):
     tree = json.loads(elems[arguments["<jsoncol>"]])
     print_leaves(tree, primarykey, "", "")
 
-if __name__ == "__main__":
-  arguments = docopt(__doc__, version=0.1)
-  main(validated(arguments))
+def validated(args):
+  colnum = And(Use(lambda i: int(i)-1), lambda i: i>=0)
+  return scripts.validate(args, {"<tsvfile>": Use(open),
+           "<jsoncol>": colnum, "<idcol>": colnum})
+
+if "snakemake" in globals():
+  args = snake.args(snakemake,
+      input=["<tsvfile>"], params=["<jsoncol>", "<idcol>"])
+  main(validated(args))
+elif __name__ == "__main__":
+  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
+  main(validated(args))

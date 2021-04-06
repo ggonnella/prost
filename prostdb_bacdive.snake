@@ -9,25 +9,25 @@ rule all:
   input: path.tables/"done.insert.bacdive"
 
 rule tabulize_json_data:
-  input: path.bacdive/"bacdive.details"
-  output: path.bacdive/"bacdive.details.tabdata"
+  input: tsv=path.bacdive/"bacdive.details"
+  output: out=path.bacdive/"bacdive.details.tabdata"
   params: colnum=4, pfx="bd", idcol="bacdive_id", idcolnum=1
   script: "scripts/json_to_tabdata.py"
 
 rule generate_schema:
-  input: rules.tabulize_json_data.output
-  output: srcdir("scripts/dbschema/bacdive_db.py")
+  input: tsv=rules.tabulize_json_data.output
+  output: out=srcdir("scripts/dbschema/bacdive_db.py")
   script: "scripts/tabdata_to_dbschema.py"
 
 rule create_tables:
-  input: socket=path.socket, schema=rules.generate_schema.output[0]
+  input: dbsocket=path.socket, schema=rules.generate_schema.output[0]
   output: touch(path.tables/"done.create_tables.bacdive")
   script: "scripts/db_create_tables.py"
 
 rule insert:
   input:
     rules.create_tables.output,
-    socket=ancient(path.socket),
+    dbsocket=ancient(path.socket),
     data=rules.tabulize_json_data.output[0]
   output:
     touch(path.tables/"done.insert.bacdive")
