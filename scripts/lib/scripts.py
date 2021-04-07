@@ -9,10 +9,8 @@ args_doc = """\
   --version, -V  show script version
   --help, -h     show this help message"""
 
-_schema = {"--verbose": Or(None, True, False),
-          "--version": Or(None, True, False),
-          "--help": Or(None, True, False),
-          Optional(str): object}
+_schema = {Optional("--verbose"): Or(None, True, False),
+           Optional(str): object}
 
 def validate(args, *dicts):
   s = _schema.copy()

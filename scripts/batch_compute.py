@@ -88,11 +88,18 @@ def input_units(args):
     with open(args["<idsfile>"]) as f:
       return [line.rstrip().split("\t")[args["<col>"]-1] for line in f]
 
-def compute_skip_set(skip_arg):
+def compute_skip_set(skip_arg, verbose):
   skip = set()
   if skip_arg:
+    if verbose:
+      sys.stderr.write(f"# processing skip list... ({skip_arg})\n")
     with open(skip_arg) as f:
       for line in f: skip.add(line.rstrip().split("\t")[0])
+    if verbose:
+      sys.stderr.write("# done: skipping computation for "+\
+                       f"up to {len(skip)} units\n")
+  elif verbose:
+    sys.stderr.write("# no skip list, all input units will be processed")
   return skip
 
 def get_mod_function(fn, fun, verbose):
@@ -116,7 +123,7 @@ def compute_ids(unit_name, is_filename, idproc):
   return (unit_name if is_filename else identifier), identifier
 
 def main(args):
-  skip = compute_skip_set(args["--skip"])
+  skip = compute_skip_set(args["--skip"], args["--verbose"])
   plugin = mod.py_or_nim(args["<plugin>"], args["--verbose"])
   idproc = get_mod_function(args["--idsproc"], "compute_id",
                             args["--verbose"])
@@ -150,11 +157,13 @@ if "snakemake" in globals():
   args = snake.args(snakemake, reports.snake_args,
            input=["<plugin>", "--idsproc"],
            log=["--out", "--log"],
-           params=["<globpattern>", "<idsfile>", "<col>", "--verbose"])
-  if args["--out"] and os.path.exists(args["--out"]):
-    args["--skip"] = args["--out"]
-  else:
-    args["--skip"] = None
+           params=["<globpattern>", "<idsfile>", "<col>", "--verbose",
+                   "--skip"])
+  if args["--skip"] is None:
+    if args["--out"] and os.path.exists(args["--out"]):
+      args["--skip"] = args["--out"]
+    else:
+      args["--skip"] = None
   main(validated(args))
 elif __name__ == "__main__":
   args = docopt(__doc__.format(report_opts=reports.args_doc,

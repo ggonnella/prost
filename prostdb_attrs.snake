@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+
+import os
+
+include: "common.snake"
+
+rule all:
+  input:
+    expand(path.attrs/"done.compute_and_load.{plugin_datasrc}.{domain}",
+        plugin_datasrc=["fas_stats.refseq_genomic_fna"],
+        #domain=["archaea"])
+        domain=["archaea", "bacteria"])
+
+rule create_all_tables:
+  input:
+    expand(path.tables/"done.create_tables.{dbmodule}",
+        dbmodule=["computation_report", "attribute", "plugin_description"])
+  output:
+    done=touch(path.tables/"done.create_tables.attrs")
+
+rule create_tables:
+  input:
+    dbsocket=ancient(path.socket),
+    schema=srcdir("scripts/dbschema/{dbmodule}.py")
+  output:
+    touch(path.tables/"done.create_tables.{dbmodule}")
+  script:
+    "scripts/db_create_tables.py"
+
+rule create_attributes:
+  input:
+    dbsocket=ancient(path.socket),
+    definitions=srcdir("scripts/plugins/attributes.yaml"),
+    done=rules.create_all_tables.output.done
+  params:
+    update=True,
+    drop=True
+  output:
+    done=touch(path.tables/"done.create_attributes")
+  script:
+    "scripts/db_attributes.py"
+
+def plugin_module_path(w):
+  pfx = os.path.join(workflow.basedir, f"scripts/plugins/{w.plugin}")
+  result = pfx+".py" if os.path.exists(pfx+".py") else pfx+".nim"
+  return ancient(result)
+
+def skip_if_exists(w, datasrc):
+  skipfile = path.attrs/f"{w.plugin}.{datasrc}.{w.domain}.tsv"
+  return skipfile if os.path.exists(skipfile) else None
+
+def skip_if_exists_for_refseq_genomic_fna(w):
+  return skip_if_exists(w, "refseq_genomic_fna")
+
+checkpoint compute_on_refseq_genomic_fna:
+  input:
+    plugin=plugin_module_path,
+    ts=path.asmsummary/"assembly_summary_refseq_{domain}.update_timestamp",
+    idsproc=ancient(\
+        srcdir("scripts/plugins/refseq_accession_from_filename.py"))
+  log:
+    out=path.attrs/"{plugin}.refseq_genomic_fna.{domain}.new_data.tsv",
+    log=path.attrs/"{plugin}.refseq_genomic_fna.{domain}.log"
+  output:
+    report=path.attrs/"{plugin}.refseq_genomic_fna.{domain}.report.yaml"
+  params:
+    globpattern=str(path.genomeseq/"{domain}"/"chunk.*"/"*_genomic.fna.gz"),
+    reason="new_data",
+    skip=skip_if_exists_for_refseq_genomic_fna,
+    verbose=True
+  script:
+    "scripts/batch_compute.py"
+
+rule load_results:
+  input:
+    results=path.attrs/"{plugin}.{datasrc}.{domain}.new_data.tsv",
+    report=path.attrs/"{plugin}.{datasrc}.{domain}.report.yaml",
+    plugin=plugin_module_path,
+    dbsocket=ancient(path.socket),
+    done=rules.create_attributes.output.done
+  output:
+    touch(path.attrs/"done.load.{plugin}.{datasrc}.{domain}")
+  script:
+    "scripts/db_load_results.py"
+
+rule process_loaded:
+  input:
+    new=path.attrs/"{plugin}.{datasrc}.{domain}.new_data.tsv",
+    done=path.attrs/"done.load.{plugin}.{datasrc}.{domain}",
+    report=path.attrs/"{plugin}.{datasrc}.{domain}.report.yaml"
+  output:
+    touch(path.attrs/"done.process_loaded.{plugin}.{datasrc}.{domain}")
+  params:
+    out=str(path.attrs/"{plugin}.{datasrc}.{domain}.tsv")
+  shell:
+    """
+    echo "Number of existing data rows:"
+    if [ -e {params.out} ]; then
+      wc -l {params.out}
+    else
+      echo "0 (no file with existing data)"
+    fi
+    echo "Number of new data rows:"
+    wc -l {input.new}
+    echo "Appending new data from {input.new} to {params.out}..."
+    cat {input.new} >> {params.out}
+    echo "Removing {input.new}..."
+    rm {input.new}
+    """
+
+def input_of_compute_and_load_rule(w):
+  compute=path.attrs/f"{w.plugin}.{w.datasrc}.{w.domain}.report.yaml"
+  load=path.attrs/f"done.process_loaded.{w.plugin}.{w.datasrc}.{w.domain}"
+  result = [compute]
+  if os.path.exists(compute):
+    result.append(load)
+  return result
+
+rule compute_and_load:
+  input: input_of_compute_and_load_rule
+  output:
+    touch(path.attrs/"done.compute_and_load.{plugin}.{datasrc}.{domain}")
+

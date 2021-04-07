@@ -75,7 +75,7 @@ def args(snakemake, *dicts, **kwargs):
   """
   args = {}
   for d in dicts:
-    for k, v in d:
+    for k, v in d.items():
       setargs(args, getattr(snakemake, k), *v)
   for k, v in kwargs.items():
     setargs(args, getattr(snakemake, k), *v)

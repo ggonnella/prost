@@ -46,7 +46,7 @@ def validated(args):
 
 if "snakemake" in globals():
   args = snake.args(snakemake, db.snake_args, input=["<schema>"],
-                    params=["<table>", "--drop"])
+                    params=["<table>", "--drop", "--verbose"])
   main(validated(args))
 elif __name__ == "__main__":
   args = docopt(__doc__.format(db_args = db.args_doc,

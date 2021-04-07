@@ -45,14 +45,14 @@ class Report():
     self.data["time_end"] = str(datetime.now())
     self.data["n_units"] = n_processed
     if err:
-      self.data["status"] = "aborted" if n_processed == 0 else "partial"
+      self.data["comp_status"] = "aborted" if n_processed == 0 else "partial"
       remark = {}
       remark["error_input"] = datafile
       remark["error_class"] = err.__class__.__name__
       remark["error_message"] = str(err)
       self.data["remarks"] = yaml.dump(remark)
     else:
-      self.data["status"] = "completed"
+      self.data["comp_status"] = "completed"
     yaml.dump(self.data, self.rfile)
     self.rfile.flush()
 

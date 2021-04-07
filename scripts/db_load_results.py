@@ -24,6 +24,7 @@ from docopt import docopt
 from schema import And, Or, Use
 from lib import snake, mod, plugins, db, scripts
 import yaml
+import os
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import Session
 from dbschema.attribute import AttributeValueTables
@@ -81,6 +82,10 @@ def process_computation_report(session, reportfn, plugin, replace):
   return data["uuid"]
 
 def main(args):
+  if os.stat(args["<results>"]).st_size == 0:
+    if args["--verbose"]:
+      sys.stderr.write("# nothing to load, as results file is empty \n")
+    return
   engine = create_engine(db.connstr_from(args), echo=args["--verbose"],
                          future=True)
   with engine.connect() as connection:
@@ -91,6 +96,7 @@ def main(args):
                                  args["--replace-plugin-record"])
       computation_id = process_computation_report(session, args["<report>"],
                           plugin, args["--replace-report-record"])
+      session.commit()
       avt = AttributeValueTables(connection)
       avt.load_computation(computation_id, plugin.OUTPUT, args["<results>"])
 
@@ -105,7 +111,8 @@ def validated(args):
 if "snakemake" in globals():
   args = snake.args(snakemake, db.snake_args,
         input=["<results>", "<report>", "<plugin>"],
-        params=["--replace-plugin-record", "--replace-report-record"])
+        params=["--replace-plugin-record", "--replace-report-record",
+                "--verbose"])
   main(validated(args))
 elif __name__ == "__main__":
   args = docopt(__doc__.format(db_args=db.args_doc, db_args_usage=db.args_usage,
