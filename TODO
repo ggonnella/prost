@@ -10,6 +10,9 @@ use phenotype-based groups:
 => bacdive
 => other?
 
+use environment-based groups:
+=> e.g. from a 16s experiment?
+
 statistics which are not single per genome?
 
 bacdive:
@@ -21,7 +24,19 @@ bacdive:
          but this must be done explicitely
          since it's very slow
 
+complete genomes without bacdive records
+  --> taxonomy ID
+  --> can I connect them using NCBI taxonomy with Bacdive?
+  --> how do I get the NCBI taxonomy ID?
+
 PNU
 
 add information over the CC licences of PNU / Bacdive
 
+direct loading into the DB? => but how many records
+then into the computation table??? what if the computation breaks
+etc
+
+reduce redundancy of the data which is already loaded in the DB
+
+improve refseq_gff_analyzer plugin
