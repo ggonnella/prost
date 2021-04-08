@@ -1,10 +1,14 @@
+(1) improve refseq_gff_analyzer plugin
+(2) add gff handling to the snakefile
+(3) run an update
+
 add more statistics
 => statistics from NCBI assembly report
 => what about the functional annotations?
 
-allow to estimate taxid by rRNA
-=> compute rRNA using barrnap and/or RNAmmer
-=> classify 16S (using which program?)
+more comparison scripts
+e.g. for absence/presence
+     for low numbers (1-2-3 copies) does the current work?
 
 use phenotype-based groups:
 => bacdive
@@ -13,7 +17,8 @@ use phenotype-based groups:
 use environment-based groups:
 => e.g. from a 16s experiment?
 
-statistics which are not single per genome?
+=== this would be a good point for a presentation ===
+GOAL: end of April
 
 bacdive:
 => Use count in /api/bacdive/bacdive_id to
@@ -23,20 +28,21 @@ bacdive:
       => sometimes reload all information,
          but this must be done explicitely
          since it's very slow
+add information over the CC licences of PNU / Bacdive
 
 complete genomes without bacdive records
   --> taxonomy ID
   --> can I connect them using NCBI taxonomy with Bacdive?
   --> how do I get the NCBI taxonomy ID?
 
-PNU
+allow to estimate taxid by rRNA
+=> compute rRNA using barrnap and/or RNAmmer
+=> classify 16S (using which program?)
 
-add information over the CC licences of PNU / Bacdive
+PNU, is that useful?
 
 direct loading into the DB? => but how many records
 then into the computation table??? what if the computation breaks
 etc
 
 reduce redundancy of the data which is already loaded in the DB
-
-improve refseq_gff_analyzer plugin
