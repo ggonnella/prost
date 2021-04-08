@@ -61,10 +61,10 @@ class AttributeValueTables():
     return f"AttributeValueT{sfx}"
 
   def _init_attributes_maps(self, inspector, session):
-    self._a2t = {}
-    self._t2a = {}
-    self._t2g = {}
-    self._ncols = {}
+    self._a2t = {}   # {attr_name: tab_sfx}
+    self._t2a = {}   # {tab_sfx: Counter{attr_name: nof_v_cols}}
+    self._t2g = {}   # {tab_sfx: {group_name: [attr_names]}}
+    self._ncols = {} # {tax_sfx: total_nof_columns (accession + all v/c/g)}
     pfx = AttributeValueMixin.__tablepfx__
     for tn in inspector.get_table_names():
       if tn.startswith(pfx):
@@ -119,6 +119,27 @@ class AttributeValueTables():
 
   def table_for_attribute(self, attribute):
     return self.tablename(self._a2t[attribute])
+
+  def attribute_group(self, attribute, t_sfx):
+    for g_name, g_members in self._t2g[t_sfx].items():
+      if attribute in g_members:
+        return g_name
+    return None
+
+  def attribute_location(self, attribute):
+    """
+    Table suffix and column names of an attribute
+
+    Returns:
+      (table_suffix, [list_of_v_column_names],
+       c_column_name, g_column_name or None)
+    """
+    t_sfx = self._a2t[attribute]
+    vcolnames = self._vcolnames(attribute, self._t2a[t_sfx][attribute])
+    ccolname = self._ccolname(attribute)
+    grp = self.attribute_group(attribute, t_sfx)
+    gcolname = self._gcolname(grp) if grp else None
+    return (t_sfx, vcolnames, ccolname, gcolname)
 
   @staticmethod
   def tablesuffix(tablename):
