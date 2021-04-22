@@ -63,23 +63,8 @@ import sys
 from glob import glob
 from lib import snake, mod, valid, reports, scripts
 import tqdm
-
-def compute(plugin, state, input_id, output_id, params,
-            outfile, logfile, report, n_processed, verbose):
-  if state:
-    params["state"] = state
-  try:
-    results, logs = plugin.compute(input_id, **params)
-  except Exception as err:
-    report.finalize(n_processed, err, input_id)
-    outfile.flush()
-    logfile.flush()
-    raise(err)
-  results = "\t".join([str(r) for r in results])
-  outfile.write(f"{output_id}\t{results}\n")
-  if logfile and logs:
-    for msg in logs:
-      logfile.write(f"{output_id}\t{msg}\n")
+from concurrent.futures import as_completed, ProcessPoolExecutor
+from functools import partial
 
 def input_units(args):
   if args["<globpattern>"]:
@@ -99,7 +84,7 @@ def compute_skip_set(skip_arg, verbose):
       sys.stderr.write("# done: skipping computation for "+\
                        f"up to {len(skip)} units\n")
   elif verbose:
-    sys.stderr.write("# no skip list, all input units will be processed")
+    sys.stderr.write("# no skip list, all input units will be processed\n")
   return skip
 
 def get_mod_function(fn, fun, verbose):
@@ -122,28 +107,89 @@ def compute_ids(unit_name, is_filename, idproc):
   identifier = idproc(unit_name) if idproc else unit_name
   return (unit_name if is_filename else identifier), identifier
 
+def compute_all_ids(args, idproc, skip, verbose):
+  if verbose:
+    sys.stderr.write("# compute input and output IDs...")
+  result = []
+  for unit_name in input_units(args):
+    input_id, output_id = compute_ids(unit_name, args["<globpattern>"], idproc)
+    if output_id in skip:
+      skip.remove(output_id)
+    else:
+      result.append((input_id, output_id))
+  if verbose:
+    sys.stderr.write("done\n")
+  return result
+
+def init_params_and_state(params, plugin):
+  state = plugin.initialize(**params.get("state", {})) \
+      if hasattr(plugin, "initialize") else None
+  if state: params["state"] = state
+  return params, state
+
+def on_failure(outfile, logfile, report, output_id):
+  outfile.flush()
+  logfile.flush()
+  report.error(exc, output_id)
+
+def on_success(outfile, logfile, report, output_id, results, logs):
+  results = "\t".join([str(r) for r in results])
+  outfile.write(f"{output_id}\t{results}\n")
+  if logfile and logs:
+    for msg in logs:
+      logfile.write(f"{output_id}\t{msg}\n")
+  report.step()
+
+plugin = None
+
+def unit_processor(input_id, params):
+  global plugin
+  return plugin.compute(input_id, **params)
+
+def run_in_parallel(all_ids, params, outfile, logfile, report, verbose):
+  if verbose:
+    sys.stderr.write("# Computation will be in parallel (multiprocess)\n")
+  with ProcessPoolExecutor() as executor:
+    futures_map = {executor.submit(unit_processor, unit_ids[0], params):
+                   unit_ids[1] for unit_ids in all_ids}
+    for future in tqdm.tqdm(as_completed(futures_map), total=len(futures_map)):
+      output_id = futures_map[future]
+      try:
+        results, logs = future.result()
+      except Exception as exc:
+        on_failure(outfile, logfile, report, output_id)
+        raise(exc)
+      else:
+        on_success(outfile, logfile, report, output_id, results, logs)
+
+def run_serially(all_ids, params, outfile, logfile, report, verbose):
+  if verbose:
+    sys.stderr.write("# Computation will be serial\n")
+  global plugin
+  for unit_ids in tqdm.tqdm(all_ids):
+    output_id = unit_ids[1]
+    try:
+      results, logs = plugin.compute(unit_ids[0], **params)
+    except Exception as exc:
+      on_failure(outfile, logfile, report, output_id)
+      raise(exc)
+    else:
+      on_success(outfile, logfile, report, output_id, results, logs)
+
 def main(args):
+  global plugin
   skip = compute_skip_set(args["--skip"], args["--verbose"])
   plugin = mod.py_or_nim(args["<plugin>"], args["--verbose"])
   idproc = get_mod_function(args["--idsproc"], "compute_id",
                             args["--verbose"])
   report = reports.Report.from_args(plugin, args)
   outfile, logfile = open_files(args["--out"], args["--log"])
-  n_processed = 0
-  params = args["--params"]
-  state = plugin.initialize(**params.get("state", {})) \
-      if hasattr(plugin, "initialize") else None
-  for unit_name in tqdm.tqdm(input_units(args)):
-    input_id, output_id = compute_ids(unit_name, args["<globpattern>"], idproc)
-    if output_id in skip:
-      skip.remove(output_id)
-    else:
-      compute(plugin, state, input_id, output_id, params,
-              outfile, logfile, report, n_processed, args["--verbose"])
-      n_processed += 1
-  report.finalize(n_processed)
-  if hasattr(plugin, "finalize"):
-    plugin.finalize(state)
+  params, state = init_params_and_state(args["--params"], plugin)
+  all_ids = compute_all_ids(args, idproc, skip, args["--verbose"])
+  run = run_serially if args["--serial"] else run_in_parallel
+  run(all_ids, params, outfile, logfile, report, args["--verbose"])
+  report.finalize()
+  if hasattr(plugin, "finalize"): plugin.finalize(state)
   close_files(outfile, logfile)
 
 def validated(args):
@@ -158,7 +204,7 @@ if "snakemake" in globals():
            input=["<plugin>", "--idsproc"],
            log=["--out", "--log"],
            params=["<globpattern>", "<idsfile>", "<col>", "--verbose",
-                   "--skip"])
+                   "--skip", "--serial"])
   if args["--skip"] is None:
     if args["--out"] and os.path.exists(args["--out"]):
       args["--skip"] = args["--out"]

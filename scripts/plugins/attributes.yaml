@@ -78,6 +78,18 @@ n_translational_frameshift:
     Number of translational frameshifts annotated in the genome
   ontology_xref: SO:0001210
   computation_group: "feature_type_count"
+n_RNA_thermometer:
+  datatype: "Integer"
+  definition: >-
+    Number of RNA thermometer features annotated in the genome
+  ontology_xref: SO:0002168
+  computation_group: "feature_type_count"
+n_regulatory_promoter_element:
+  datatype: "Integer"
+  definition: >-
+    Number of regulatory promoter element annotated in the genome
+  ontology_xref: SO:0001678
+  computation_group: "feature_type_count"
 n_RNA_6S:
   datatype: "Integer"
   definition: >-

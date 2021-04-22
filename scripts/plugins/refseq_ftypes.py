@@ -85,100 +85,104 @@ REQ_SOFTWARE = "pip library gffutils"
 from collections import defaultdict
 import gffutils
 
-
 def _dict2list(d, keynames):
-    [d.get(k, 0) for k in keynames]
+  return [d.get(k, 0) for k in keynames]
 
+def fetch_attr(ftr, key):
+  return ftr.attributes.get(key, [""])[0]
 
 def _process_gene_feature(db, gene, counters, logs):
-    children = list(db.children(gene.id, level=1))
-    if len(children) == 0:
-        logs.append(f"unexpected\tgene_with_no_children\t{gene}")
-        return
-    child = children[0]
-    if not all([child.featuretype == c.featuretype for c in children]):
-        logs.append(f"unexpected\tgene_with_heterogeneous_children_type\t{gene}")
-    if child.featuretype == "CDS":
-        counters["n_protein_coding_gene"] += 1
-    elif child.featuretype == "rRNA":
-        product = child.attributes["product"][0]
-        if product.startswith("16S"):
-            counters["n_rRNA_16S"] += 1
-        elif product.startswith("5S"):
-            counters["n_rRNA_5S"] += 1
-        elif product.startswith("23S"):
-            counters["n_rRNA_23S"] += 1
-        else:
-            counters["n_other_rRNA"] += 1
-    elif child.featuretype == "ncRNA":
-        if "6S RNA" in child.attributes["product"][0]:
-            counters["n_RNA_6S"] += 1
-        else:
-            counters["n_other_ncRNA"] += 1
+  children = list(db.children(gene.id, level=1))
+  if len(children) == 0:
+    logs.append(f"unexpected\tgene_with_no_children\t{gene}")
+    return
+  child = children[0]
+  product = fetch_attr(child, "product")
+  if not all([child.featuretype == c.featuretype for c in children]):
+    logs.append(f"unexpected\tgene_with_heterogeneous_children_type\t{gene}")
+  if child.featuretype == "CDS":
+    counters["n_protein_coding_gene"] += 1
+  elif child.featuretype == "rRNA":
+    if product.startswith("16S"):
+      counters["n_rRNA_16S"] += 1
+    elif product.startswith("5S"):
+      counters["n_rRNA_5S"] += 1
+    elif product.startswith("23S"):
+      counters["n_rRNA_23S"] += 1
     else:
-        counters[f"n_{child.featuretype}"] += 1
-
+      counters["n_other_rRNA"] += 1
+  elif child.featuretype == "ncRNA":
+    if "6S RNA" in product:
+      counters["n_RNA_6S"] += 1
+    else:
+      counters["n_other_ncRNA"] += 1
+  else:
+    counters[f"n_{child.featuretype}"] += 1
 
 def compute(filename, **kwargs):
-    db = gffutils.create_db(filename, ":memory:", merge_strategy="create_unique")
-    counters = defaultdict(int)
-    logs = list()
-    for ftr in db.all_features():
-        if len(list(db.parents(ftr.id))) == 0:
-            if ftr.featuretype == "region":
-                counters["n_replicon"] += 1
-            elif ftr.featuretype == "gene":
-                _process_gene_feature(db, ftr, counters, logs)
-            elif ftr.featuretype == "pseudogene":
-                counters["n_pseudogene"] += 1
-            elif ftr.featuretype in ["sequence_feature"]:
-                if "ribosomal frameshift element" in ftr.attributes["Note"]:
-                    counters["n_translational_frameshift"] += 1
-                elif "RNA thermometer" in ftr.attributes["Note"]:
-                    counters["n_RNA_thermometer"] += 1
-                elif "leader region" in ftr.attributes["Note"]:
-                    counters["n_regulatory_promoter_element"] += 1
-                elif "pseudoknot" in ftr.attributes["Note"]:
-                    counters["n_pseudoknot"] += 1
-                else:
-                    counters["n_other_sequence_feature"] += 1
-            elif ftr.featuretype == "riboswitch":
-                counters["n_riboswitch"] += 1
-            elif ftr.featuretype == "mobile_genetic_element":
-                if ftr.attributes["mobile_element_type"][0].startswith(
-                    "insertion sequence"
-                ):
-                    counters["n_insertion_sequence"] += 1
-                else:
-                    counters["n_other_mobile_genetic_element"] += 1
-            elif ftr.featuretype == "direct_repeat":
-                if ftr.attributes["rpt_family"][0] == "CRISPR":
-                    counters["n_CRISPR"] += 1
-                else:
-                    counters["n_other_direct_repeat"] += 1
-            elif ftr.featuretype == "repeat_region":
-                if ftr.attributes["rpt_family"][0] == "SSR 1mer":
-                    counters["n_monomeric_repeat"] += 1
-                elif ftr.attributes["rpt_family"][0].startswith("SSR"):
-                    counters["n_microsatellite"] += 1
-                elif "CRISPR" in ftr.attributes["Note"][0]:
-                    counters["n_CRISPR"] += 1
-                elif "direct" in ftr.attributes["Note"][0]:
-                    counters["n_other_direct_repeat"] += 1
-                elif "inverted" in ftr.attributes["Note"][0]:
-                    counters["n_inverted_repeat"] += 1
-                elif "Interespersed Repeat" in ftr.attributes["Note"][0]:
-                    counters["n_dispersed_repeat"] += 1
-                else:
-                    counters["n_other_repeat_region"] += 1
-            elif ftr.featuretype == "binding_site":
-                if "T-box leader" in ftr.attributes["Note"]:
-                    counters["n_regulatory_promoter_element"] += 1
-                else:
-                    counters["n_other_binding_site"] += 1
-            else:
-                counters[f"n_{ftr.feature_type}"] += 1
-        for k, v in counters.items():
-            if k not in OUTPUT:
-                logs.append(f"secondary_count\t{k}\t{v}")
-    return _dict2list(counters, OUTPUT), logs
+  db = gffutils.create_db(filename, ":memory:", merge_strategy="create_unique")
+  counters = defaultdict(int)
+  logs = list()
+  for ftr in db.all_features():
+    if len(list(db.parents(ftr.id))) == 0:
+      if ftr.featuretype == "region":
+        counters["n_replicon"] += 1
+      elif ftr.featuretype == "gene":
+        _process_gene_feature(db, ftr, counters, logs)
+      elif ftr.featuretype == "pseudogene":
+        counters["n_pseudogene"] += 1
+      elif ftr.featuretype in ["sequence_feature"]:
+        note = fetch_attr(ftr, "Note")
+        if "ribosomal frameshift element" in note:
+          counters["n_translational_frameshift"] += 1
+        elif "RNA thermometer" in note:
+          counters["n_RNA_thermometer"] += 1
+        elif "leader region" in note:
+          counters["n_regulatory_promoter_element"] += 1
+        elif "pseudoknot" in note:
+          counters["n_pseudoknot"] += 1
+        else:
+          counters["n_other_sequence_feature"] += 1
+      elif ftr.featuretype == "riboswitch":
+        counters["n_riboswitch"] += 1
+      elif ftr.featuretype == "mobile_genetic_element":
+        met = fetch_attr(ftr, "mobile_element_type")
+        if met.startswith("insertion sequence"):
+          counters["n_insertion_sequence"] += 1
+        else:
+          counters["n_other_mobile_genetic_element"] += 1
+      elif ftr.featuretype == "direct_repeat":
+        rf = fetch_attr(ftr, "rpt_family")
+        if rf == "CRISPR":
+          counters["n_CRISPR"] += 1
+        else:
+          counters["n_other_direct_repeat"] += 1
+      elif ftr.featuretype == "repeat_region":
+        rf = fetch_attr(ftr, "rpt_family")
+        note = fetch_attr(ftr, "Note")
+        if rf == "SSR 1mer":
+          counters["n_monomeric_repeat"] += 1
+        elif rf.startswith("SSR"):
+          counters["n_microsatellite"] += 1
+        elif "CRISPR" in note:
+          counters["n_CRISPR"] += 1
+        elif "direct" in note:
+          counters["n_other_direct_repeat"] += 1
+        elif "inverted" in note:
+          counters["n_inverted_repeat"] += 1
+        elif "Interespersed Repeat" in note:
+          counters["n_dispersed_repeat"] += 1
+        else:
+          counters["n_other_repeat_region"] += 1
+      elif ftr.featuretype == "binding_site":
+        note = fetch_attr(ftr, "Note")
+        if "T-box leader" in note:
+          counters["n_regulatory_promoter_element"] += 1
+        else:
+          counters["n_other_binding_site"] += 1
+      else:
+        counters[f"n_{ftr.feature_type}"] += 1
+  for k, v in counters.items():
+    if k not in OUTPUT:
+      logs.append(f"secondary_count\t{k}\t{v}")
+  return _dict2list(counters, OUTPUT), logs
