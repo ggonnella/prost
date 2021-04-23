@@ -52,6 +52,7 @@ Options:
                     (this can be the same file used for --skip)
   --log, -l FNAME   write logs to the given file (default: stderr);
                     if the file exists, the output is appended
+  --serial          run the computation serially (default: use multiprocessing)
 {report_opts}
 {common}
 """
@@ -60,8 +61,9 @@ from docopt import docopt
 from schema import Or
 import os
 import sys
+from pathlib import Path
 from glob import glob
-from lib import snake, mod, valid, reports, scripts
+from lib import snake, mod, valid, reports, scripts, formatting
 import tqdm
 from concurrent.futures import as_completed, ProcessPoolExecutor
 from functools import partial
@@ -146,13 +148,14 @@ def unit_processor(input_id, params):
   global plugin
   return plugin.compute(input_id, **params)
 
-def run_in_parallel(all_ids, params, outfile, logfile, report, verbose):
+def run_in_parallel(all_ids, params, outfile, logfile, report, desc, verbose):
   if verbose:
     sys.stderr.write("# Computation will be in parallel (multiprocess)\n")
   with ProcessPoolExecutor() as executor:
     futures_map = {executor.submit(unit_processor, unit_ids[0], params):
                    unit_ids[1] for unit_ids in all_ids}
-    for future in tqdm.tqdm(as_completed(futures_map), total=len(futures_map)):
+    for future in tqdm.tqdm(as_completed(futures_map), total=len(futures_map),
+                            desc=desc):
       output_id = futures_map[future]
       try:
         results, logs = future.result()
@@ -162,11 +165,11 @@ def run_in_parallel(all_ids, params, outfile, logfile, report, verbose):
       else:
         on_success(outfile, logfile, report, output_id, results, logs)
 
-def run_serially(all_ids, params, outfile, logfile, report, verbose):
+def run_serially(all_ids, params, outfile, logfile, report, desc, verbose):
   if verbose:
     sys.stderr.write("# Computation will be serial\n")
   global plugin
-  for unit_ids in tqdm.tqdm(all_ids):
+  for unit_ids in tqdm.tqdm(all_ids, desc=desc):
     output_id = unit_ids[1]
     try:
       results, logs = plugin.compute(unit_ids[0], **params)
@@ -180,6 +183,7 @@ def main(args):
   global plugin
   skip = compute_skip_set(args["--skip"], args["--verbose"])
   plugin = mod.py_or_nim(args["<plugin>"], args["--verbose"])
+  desc = formatting.shorten(Path(args["<plugin>"]).stem, 15)
   idproc = get_mod_function(args["--idsproc"], "compute_id",
                             args["--verbose"])
   report = reports.Report.from_args(plugin, args)
@@ -187,7 +191,7 @@ def main(args):
   params, state = init_params_and_state(args["--params"], plugin)
   all_ids = compute_all_ids(args, idproc, skip, args["--verbose"])
   run = run_serially if args["--serial"] else run_in_parallel
-  run(all_ids, params, outfile, logfile, report, args["--verbose"])
+  run(all_ids, params, outfile, logfile, report, desc, args["--verbose"])
   report.finalize()
   if hasattr(plugin, "finalize"): plugin.finalize(state)
   close_files(outfile, logfile)
