@@ -32,9 +32,9 @@ def initialize():
 def finalize(state):
   state.finalize()
 
-def compute(unit, **kwargs):
-  if kwargs.get("state"):
-    print(str(kwargs["state"]))
+def compute(unit, state=None, **kwargs):
+  if state:
+    print(str(state))
   return [unit], None
 
 def compute_id(filename):
