@@ -61,9 +61,9 @@ Some feature types are assigned to more specific classes
     => RNA_thermometer if Note contains: 'RNA thermometer'
     => regulatory_promoter_element if Note contains: 'leader region'
     => pseudoknot if Note contains: pseudoknot
-Other features are counted by their feature_type column.
+Other features are counted by their featuretype column.
 
-The counts for feature types contained in OUTPUT (n_<feature_type>)
+The counts for feature types contained in OUTPUT (n_<featuretype>)
 are output in the results.
 
 Other counts are output in the logs with the key "secondary_count" and are not
@@ -181,7 +181,7 @@ def compute(filename, **kwargs):
         else:
           counters["n_other_binding_site"] += 1
       else:
-        counters[f"n_{ftr.feature_type}"] += 1
+        counters[f"n_{ftr.featuretype}"] += 1
   for k, v in counters.items():
     if k not in OUTPUT:
       logs.append(f"secondary_count\t{k}\t{v}")

@@ -129,7 +129,7 @@ def init_params_and_state(params, plugin):
   if state: params["state"] = state
   return params, state
 
-def on_failure(outfile, logfile, report, output_id):
+def on_failure(outfile, logfile, report, output_id, exc):
   outfile.flush()
   logfile.flush()
   report.error(exc, output_id)
@@ -160,7 +160,7 @@ def run_in_parallel(all_ids, params, outfile, logfile, report, desc, verbose):
       try:
         results, logs = future.result()
       except Exception as exc:
-        on_failure(outfile, logfile, report, output_id)
+        on_failure(outfile, logfile, report, output_id, exc)
         raise(exc)
       else:
         on_success(outfile, logfile, report, output_id, results, logs)
@@ -174,7 +174,7 @@ def run_serially(all_ids, params, outfile, logfile, report, desc, verbose):
     try:
       results, logs = plugin.compute(unit_ids[0], **params)
     except Exception as exc:
-      on_failure(outfile, logfile, report, output_id)
+      on_failure(outfile, logfile, report, output_id, exc)
       raise(exc)
     else:
       on_success(outfile, logfile, report, output_id, results, logs)
