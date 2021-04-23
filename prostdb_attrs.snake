@@ -9,8 +9,7 @@ rule all:
     expand(path.attrs/"done.compute_and_load.{plugin_datasrc}.{domain}",
         plugin_datasrc=["fas_stats.refseq_genomic_fna",
                         "refseq_ftypes.refseq_genomic_gff"],
-        domain=["archaea"])
-        #domain=["archaea", "bacteria"])
+        domain=["archaea", "bacteria"])
 
 rule create_all_tables:
   input:
