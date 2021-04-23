@@ -7,9 +7,10 @@ include: "common.snake"
 rule all:
   input:
     expand(path.attrs/"done.compute_and_load.{plugin_datasrc}.{domain}",
-        plugin_datasrc=["fas_stats.refseq_genomic_fna"],
-        #domain=["archaea"])
-        domain=["archaea", "bacteria"])
+        plugin_datasrc=["fas_stats.refseq_genomic_fna",
+                        "refseq_ftypes.refseq_genomic_gff"],
+        domain=["archaea"])
+        #domain=["archaea", "bacteria"])
 
 rule create_all_tables:
   input:
@@ -45,29 +46,36 @@ def plugin_module_path(w):
   result = pfx+".py" if os.path.exists(pfx+".py") else pfx+".nim"
   return ancient(result)
 
-def skip_if_exists(w, datasrc):
-  skipfile = path.attrs/f"{w.plugin}.{datasrc}.{w.domain}.tsv"
+def skipopt_value(w):
+  skipfile = path.attrs/f"{w.plugin}.{w.datasrc}.{w.domain}.tsv"
   return skipfile if os.path.exists(skipfile) else None
 
-def skip_if_exists_for_refseq_genomic_fna(w):
-  return skip_if_exists(w, "refseq_genomic_fna")
+ext_for_datasrc = {
+    "refseq_genomic_fna": "genomic.fna.gz",
+    "refseq_genomic_gff": "genomic.gff.gz"
+  }
 
-checkpoint compute_on_refseq_genomic_fna:
+def globpattern_value(w):
+  return str(path.genomes / w.datasrc / w.domain / "chunk.*" / \
+             f"*_{ext_for_datasrc[w.datasrc]}")
+
+checkpoint compute_on_local_refseq_files:
   input:
     plugin=plugin_module_path,
     ts=path.asmsummary/"assembly_summary_refseq_{domain}.update_timestamp",
     idsproc=ancient(\
         srcdir("scripts/plugins/refseq_accession_from_filename.py"))
   log:
-    out=path.attrs/"{plugin}.refseq_genomic_fna.{domain}.new_data.tsv",
-    log=path.attrs/"{plugin}.refseq_genomic_fna.{domain}.log"
+    out=path.attrs/"{plugin}.{datasrc}.{domain}.new_data.tsv",
+    log=path.attrs/"{plugin}.{datasrc}.{domain}.log"
   output:
-    report=path.attrs/"{plugin}.refseq_genomic_fna.{domain}.report.yaml"
+    report=path.attrs/"{plugin}.{datasrc}.{domain}.report.yaml"
   params:
-    globpattern=str(path.genomeseq/"{domain}"/"chunk.*"/"*_genomic.fna.gz"),
+    globpattern=globpattern_value,
     reason="new_data",
-    skip=skip_if_exists_for_refseq_genomic_fna,
-    verbose=True
+    skip=skipopt_value,
+    verbose=True,
+    serial=False
   script:
     "scripts/batch_compute.py"
 
