@@ -30,7 +30,7 @@ import inspect
 from lib import snake, mod, scripts
 
 def main(args):
-  plugin = mod.py_or_nim(args["<plugin>"], args["--verbose"])
+  plugin = mod.py_or_nim_or_rust(args["<plugin>"], args["--verbose"])
   exit_code = 0
   if not hasattr(plugin, "compute"):
     sys.stderr.write("# [Error] plugin does not provide a compute function\n")
@@ -38,10 +38,14 @@ def main(args):
   else:
     if args["--verbose"]:
       sys.stderr.write("# [OK] plugin provides a compute function\n")
-    if plugin.__nim__:
+    if plugin.__lang__ == "nim":
       if args["--verbose"]:
         sys.stderr.write("# [Info] signature of plugin.compute() not analyzed, "+\
             " since it is a Nim plugin\n")
+    elif plugin.__lang__ == "rust":
+      if args["--verbose"]:
+        sys.stderr.write("# [Info] signature of plugin.compute() not analyzed, "+\
+            " since it is a Rust plugin\n")
     else:
       compute_spec = inspect.getfullargspec(plugin.compute)
       if compute_spec.varargs is not None:
