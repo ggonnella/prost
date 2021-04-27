@@ -91,7 +91,7 @@ def main(args):
   with engine.connect() as connection:
     with connection.begin():
       session = Session(bind=connection)
-      plugin = mod.py_or_nim(args["<plugin>"], args["--verbose"])
+      plugin = mod.importer(args["<plugin>"], args["--verbose"])
       process_plugin_description(session, plugin,
                                  args["--replace-plugin-record"])
       computation_id = process_computation_report(session, args["<report>"],

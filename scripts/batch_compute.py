@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Perform computations on multiple files, using the compute function of the
-specified Nim or Python plugin module (see plugins/README.md for the plugins
+specified Python/Nim/Rust plugin module (see plugins/README.md for the plugins
 specification).
 
 Usage:
@@ -41,7 +41,7 @@ Output:
   version, parameters, username, hostname, etc.
 
 Options:
-  --idsproc FNAME   Python or Nim module, providing compute_id(str)->str;
+  --idsproc FNAME   Python/Nim/Rust module, providing compute_id(str)->str;
                     allows to edit the IDs/filenames used for (1) results;
                     (2) --skip option; (3) in "ids" mode only: input to the
                     compute() function
@@ -91,7 +91,7 @@ def compute_skip_set(skip_arg, verbose):
 
 def get_mod_function(fn, fun, verbose):
   if fn:
-    pmod = mod.py_or_nim(fn, verbose)
+    pmod = mod.importer(fn, verbose)
     return getattr(pmod, fun)
   else:
     return None
@@ -182,7 +182,7 @@ def run_serially(all_ids, params, outfile, logfile, report, desc, verbose):
 def main(args):
   global plugin
   skip = compute_skip_set(args["--skip"], args["--verbose"])
-  plugin = mod.py_or_nim(args["<plugin>"], args["--verbose"])
+  plugin = mod.importer(args["<plugin>"], args["--verbose"])
   desc = formatting.shorten(Path(args["<plugin>"]).stem, 15)
   idproc = get_mod_function(args["--idsproc"], "compute_id",
                             args["--verbose"])

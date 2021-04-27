@@ -35,7 +35,7 @@ from lib import snake, valid, tables, mod, scripts
 
 def main(args):
   counts = defaultdict(int)
-  m = mod.importer(args["<module>"], args["--verbose"])
+  m = mod.py(args["<module>"], args["--verbose"])
   for row in tables.get_dict_reader(args, args["<table>"]):
     for k, v in m.counters.items():
       if v(row): counts[k] += 1

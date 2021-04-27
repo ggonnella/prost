@@ -52,7 +52,7 @@ def compare_to_subtree(session, engine, node, value, attribute):
 def main(args):
   engine = create_engine(db.connstr_from(args), echo=args["--verbose"])
   session = sessionmaker(bind=engine)()
-  plugin = mod.py_or_nim(args["<plugin>"], args["--verbose"])
+  plugin = mod.importer(args["<plugin>"], args["--verbose"])
   node = args["<taxid>"]
   results, logs = plugin.compute(args["<genome>"])
   value = float(results[plugin.OUTPUT.index(args["<attribute>"])])

@@ -30,7 +30,7 @@ import inspect
 from lib import snake, mod, scripts
 
 def main(args):
-  plugin = mod.py_or_nim_or_rust(args["<plugin>"], args["--verbose"])
+  plugin = mod.importer(args["<plugin>"], args["--verbose"])
   exit_code = 0
   if not hasattr(plugin, "compute"):
     sys.stderr.write("# [Error] plugin does not provide a compute function\n")
