@@ -5,7 +5,7 @@ from a NCBI Refseq genome annotation GFF file.
 """
 
 ID = "refseq_gff_count"
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 INPUT = "genome annotation; from NCBI Refseq; gff, optionally gzipped"
 OUTPUT = [
     "n_replicon",
