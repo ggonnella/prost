@@ -37,6 +37,7 @@ Options:
 from docopt import docopt
 from schema import And, Or, Use
 from lib import scripts, snake, db, mysql, sqlwriter
+from icecream import ic
 
 def main(args):
   headerpfx = args["--headerpfx"] if args["--skipheader"] else ""
@@ -59,7 +60,8 @@ def validated(args):
                          lambda l: all(e > 0 for e in l))),
                    "--ncbidmp": Or(None, True, False),
                    "--skipheader": Or(None, True, False),
-                   "--headerpfx": Or(And(None, Use("#")), And(str, len)),
+                   "--headerpfx": Or(And(None, Use(lambda n: "#")),
+                                     And(str, len)),
                    "--set": Or(None, open)})
 
 if "snakemake" in globals():
@@ -69,7 +71,7 @@ if "snakemake" in globals():
                 "--dropkeys", "--ncbidmp", "--skipheader", "--headerpfx",
                 "--skipfields"])
   if args["--dbschema"]:
-    args["<columns>"] = args["--dbschema"]
+    args["<columns>"] = [args["--dbschema"]]
     args["--dbschema"] = True
   main(validated(args))
 elif __name__ == "__main__":

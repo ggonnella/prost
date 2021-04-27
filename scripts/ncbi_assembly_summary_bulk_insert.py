@@ -87,14 +87,14 @@ def validated(args):
           {"<file>": open, "<database>": Or("refseq", "genbank"),
            "<domain>": Or("bacteria", "archaea"),
            "--batch": Or(And(None, Use(lambda n: 20000)),
-                                 And(Use(int), lambda n: n>0))})
+                         And(Use(int), lambda n: n>0))})
 
 if "snakemake" in globals():
   args = snake.args(snakemake, db.snake_args,
       input = [("<file>", "datasrc")],
-      wildcards = [("<database>", "db"), "domain"],
+      wildcards = [("<database>", "db"), "<domain>"],
       params = ["--update", "--batch"])
-  main(args)
+  main(validated(args))
 elif __name__ == "__main__":
   args = docopt(__doc__.format(db_args = db.args_doc,
      db_args_usage = db.args_usage, common = scripts.args_doc), version="0.1")

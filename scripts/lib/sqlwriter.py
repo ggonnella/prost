@@ -1,4 +1,5 @@
 import importlib
+import os
 from typing import Union, List, Dict, Any
 
 def _fixed_data_from_file(fixed_data_fn):
@@ -10,7 +11,9 @@ def _fixed_data_from_file(fixed_data_fn):
   return result
 
 def _column_names_from_dbschema(filename, tablename):
+  assert(os.path.exists(filename))
   spec = importlib.util.spec_from_file_location("dbschema", filename)
+  assert(spec)
   dbschema = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(dbschema)
   klass = dbschema.tablename2class[tablename]
