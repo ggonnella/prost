@@ -20,6 +20,7 @@ Limitations:
 
 Options:
 {common}
+  --params FNAME    YAML file with additional parameters (default: None)
 """
 
 from schema import And, Use
@@ -28,7 +29,7 @@ from dbschema.ncbi_taxonomy_db import NtName
 import taxtree_query
 import cmpstat_distribution
 import batch_compute
-from lib import snake, db, scripts, mod
+from lib import snake, db, scripts, mod, valid
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -49,12 +50,20 @@ def compare_to_subtree(session, engine, node, value, attribute):
  print(f"Value for the genome of interest: {value}")
  cmpstat_distribution.cmp_to_distri(value, values)
 
+def compute_results(plugin, genome, params):
+  if hasattr(plugin, "initialize"):
+    params["state"] = plugin.initialize(**params.get("state", {}))
+  results, logs = plugin.compute(genome, **params)
+  if hasattr(plugin, "finalize"):
+    plugin.finalize(params["state"])
+  return results
+
 def main(args):
   engine = create_engine(db.connstr_from(args), echo=args["--verbose"])
   session = sessionmaker(bind=engine)()
   plugin = mod.importer(args["<plugin>"], args["--verbose"])
   node = args["<taxid>"]
-  results, logs = plugin.compute(args["<genome>"])
+  results = compute_results(plugin, args["<genome>"], args["--params"])
   value = float(results[plugin.OUTPUT.index(args["<attribute>"])])
   for i in range(args["<up>"]):
     compare_to_subtree(session, engine, node, value,
@@ -64,12 +73,12 @@ def main(args):
 def validated(args):
   return scripts.validate(args, db.args_schema, {"<taxid>": Use(int),
     "<attribute>": And(str, len), "<plugin>": open, "<genome>": open,
-    "<up>": Use(int)})
+    "<up>": Use(int), "--params": valid.yamlfile})
 
 if "snakemake" in globals():
   args = snake.args(snakemake, db.snake_args,
     params = ["<taxid>", "<attribute>", "<up>"],
-    input = ["<plugin>", "<genome>"])
+    input = ["<plugin>", "<genome>", "--params"])
   main(validated(args))
 elif __name__ == "__main__":
   args = docopt(__doc__.format(db_args = db.args_doc,
