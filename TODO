@@ -1,6 +1,4 @@
-(1) improve refseq_gff_analyzer plugin
-(2) add gff handling to the snakefile
-(3) run an update
+
 
 add more statistics
 => statistics from NCBI assembly report
@@ -9,6 +7,7 @@ add more statistics
 more comparison scripts
 e.g. for absence/presence
      for low numbers (1-2-3 copies) does the current work?
+      score=1/freq of the class
 
 use phenotype-based groups:
 => bacdive
@@ -35,9 +34,9 @@ complete genomes without bacdive records
   --> can I connect them using NCBI taxonomy with Bacdive?
   --> how do I get the NCBI taxonomy ID?
 
-allow to estimate taxid by rRNA
-=> compute rRNA using barrnap and/or RNAmmer
-=> classify 16S (using which program?)
+allow to estimate taxid automatically:
+=> classify using barrnap and/or RNAmmer to get 16S followed by ?
+=> classify using genome and GTDBTk
 
 PNU, is that useful?
 
@@ -46,3 +45,6 @@ then into the computation table??? what if the computation breaks
 etc
 
 reduce redundancy of the data which is already loaded in the DB
+
+=> create reports on Prost data using pandas/seaborn/scipy
+
