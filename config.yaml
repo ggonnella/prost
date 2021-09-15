@@ -7,3 +7,4 @@ dbname: prostdb
 testdbname: prosttestdb
 dbrootpass: root
 sysuser: gonnella
+domains: [archaea, bacteria]

@@ -72,7 +72,7 @@ def main(args):
   close_outfile(outfile, args)
 
 def validated(args):
-  return scripts.validate(args, {"--update": Or(None, os.path.exists)})
+  return scripts.validate(args, {"--update": Or(None, len)})
 
 if "snakemake" in globals():
   args = snake.args(snakemake, params=[("--update", "prev"), "<globpattern>"])

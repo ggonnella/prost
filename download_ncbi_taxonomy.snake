@@ -24,9 +24,9 @@ include: "common.snake"
 # running the rule, thus re-downloaded every time.
 
 def all_targets(wildcards):
-  taxdump_updated=path.tax/"taxdump.updated"
+  taxdump_updated=str(path.tax/"taxdump.updated")
   if os.path.exists(taxdump_updated):
-    return [taxdump_updated, path.tax/"nodes.dmp"]
+    return [taxdump_updated, str(path.tax/"nodes.dmp")]
   else:
     return [taxdump_updated]
 
@@ -82,7 +82,7 @@ rule decompress_taxdump:
     timestamp=path.tax/"download.timestamp",
     taxdump=ancient(path.tax/"taxdump.tar.gz")
   output:
-    expand(path.tax/"{table}.dmp",
+    expand(str(path.tax/"{table}.dmp"),
         table=["names", "nodes", "gencode", "division",
                "merged", "delnodes", "citations"])
   shell:

@@ -8,7 +8,7 @@ rule all:
 
 rule load_all:
   input:
-    expand(path.tables/"done.load.ncbi_taxonomy.{table}",
+    expand(str(path.tables/"done.load.ncbi_taxonomy.{table}"),
         table=["names", "nodes", "gencode", "division",
                "merged", "delnodes", "citations"]),
   output:

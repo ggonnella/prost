@@ -10,8 +10,8 @@ rule all:
 
 rule insert_all:
   input:
-    expand(path.tables/"done.insert.ncbi_assembly_summary.{db}.{domain}",
-        db=["genbank", "refseq"], domain=["bacteria", "archaea"])
+    expand(str(path.tables/"done.insert.ncbi_assembly_summary.{db}.{domain}"),
+        db=["genbank", "refseq"], domain=config["domains"])
   output:
     touch(path.tables/"done.insert.ncbi_assembly_summary")
 

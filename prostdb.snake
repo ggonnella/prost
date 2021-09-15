@@ -44,7 +44,17 @@ rule initialize:
     datadir=directory(path.dbdata)
   shell:
     """
-    mysql_install_db --user={config[sysuser]} --datadir={output.datadir}
+    case "$(uname -s)" in
+      Darwin*)
+        echo "[PROSTDB] Using MacOS configuration..."
+        echo "[PROSTDB] assuming mariadb is installed using brew"
+        mysql_install_db --basedir="$(brew --prefix mariadb)" --user={config[sysuser]} --datadir={output.datadir}
+        ;;
+      *)
+        echo "[PROSTDB] Using Linux/Unix configuration..."
+        mysql_install_db --user={config[sysuser]} --datadir={output.datadir}
+        ;;
+      esac
     """
 
 rule set_root_password:
@@ -55,7 +65,24 @@ rule set_root_password:
     done=touch(path.db/"done.set_root_password")
   shell:
     """
-    mysqladmin -u root --socket={input.socket} password {config[dbrootpass]}
+    case "$(uname -s)" in
+      Darwin*)
+        echo -n "[PROSTDB] On MacOS, setting the DB root password currently "
+        echo "requires root access to the system"
+        echo "[PROSTDB] Enter the root password at the following prompt"
+        COMMANDS="USE mysql; "
+        COMMANDS+="ALTER USER 'root'@'localhost' "
+        COMMANDS+="  IDENTIFIED BY '{config[dbrootpass]}';"
+        COMMANDS+="FLUSH PRIVILEGES; "
+        echo ${{COMMANDS}}
+        echo "${{COMMANDS}}" | sudo mysql -u root \
+                           --socket={input.socket}
+        ;;
+      *)
+        echo "[PROSTDB] Using mysqladmin to change the DB root password"
+        mysqladmin -u root --socket={input.socket} password {config[dbrootpass]}
+        ;;
+      esac
     """
 
 rule create_db:

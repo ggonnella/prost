@@ -8,7 +8,6 @@ import sh
 include: "common.snake"
 
 DBs = ["refseq", "genbank"]
-Domains = ["bacteria", "archaea"]
 
 #
 # the update strategy of the summaries is the same as in
@@ -20,9 +19,9 @@ Domains = ["bacteria", "archaea"]
 #
 
 def all_targets(wildcards):
-  summaries_updated=path.asmsummary/"update_summaries.done"
+  summaries_updated=str(path.asmsummary/"update_summaries.done")
   if os.path.exists(summaries_updated):
-    return [summaries_updated, path.asmsummary/"update_sequences.done"]
+    return [summaries_updated, str(path.asmsummary/"update_sequences.done")]
   else:
     return [summaries_updated]
 
@@ -35,8 +34,8 @@ rule all:
 
 checkpoint update_all_summaries:
   input:
-    expand(path.asmsummary/"update_summaries.{db}.{domain}.done",
-      db=DBs, domain=Domains)
+    expand(str(path.asmsummary/"update_summaries.{db}.{domain}.done"),
+      db=DBs, domain=config["domains"])
   output:
     touch(path.asmsummary/"update_summaries.done")
 
@@ -89,8 +88,8 @@ ext_for_filetype = {
 
 rule update_all_sequences:
   input:
-    expand(path.asmsummary/"update_sequences.refseq.{domain}.{filetype}.done",
-           domain=Domains, filetype=ext_for_filetype.keys())
+    expand(str(path.asmsummary/"update_sequences.refseq.{domain}.{filetype}.done"),
+           domain=config["domains"], filetype=ext_for_filetype.keys())
   output:
     temp(touch(path.asmsummary/"update_sequences.done"))
 

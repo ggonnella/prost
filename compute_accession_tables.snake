@@ -21,14 +21,12 @@ import tqdm
 
 include: "common.snake"
 
-Domains = ["bacteria", "archaea"]
-
 rule all:
   input:
-    expand(path.accessions/"gbasm_rsasm_gbseq.{domain}.done", domain=Domains),
-    expand(path.accessions/"rsasm.{domain}.tsv", domain=Domains),
-    expand(path.accessions/"gbasm_rsasm.{domain}.tsv", domain=Domains),
-    expand(path.accessions/"rsasm_rsseq.{domain}.done", domain=Domains)
+    expand(str(path.accessions/"gbasm_rsasm_gbseq.{domain}.done"), domain=config["domains"]),
+    expand(str(path.accessions/"rsasm.{domain}.tsv"), domain=config["domains"]),
+    expand(str(path.accessions/"gbasm_rsasm.{domain}.tsv"), domain=config["domains"]),
+    expand(str(path.accessions/"rsasm_rsseq.{domain}.done"), domain=config["domains"])
 
 rule table_rs_asm_accessions:
   input:
