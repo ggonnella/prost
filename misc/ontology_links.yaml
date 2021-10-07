@@ -1,0 +1,2 @@
+SO: "http://purl.obolibrary.org/obo/SO_{ID}"
+EDAM_data: "http://edamontology.org/data_{ID}"
