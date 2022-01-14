@@ -1,10 +1,10 @@
-dataroot: /data/giorgio/prost
-bacdive_user: gonnella@zbh.uni-hamburg.de
-bacdive_pass: bacdivepass
+dataroot:
+sysuser:
+bacdive_user:
+bacdive_pass:
 dbuser: prostuser
 dbpass: prostpass
 dbname: prostdb
 testdbname: prosttestdb
 dbrootpass: root
-sysuser: gonnella
 domains: [archaea, bacteria]
