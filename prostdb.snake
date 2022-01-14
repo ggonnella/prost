@@ -18,11 +18,13 @@ include: "common.snake"
 replace_dead_socket=\
       f"if test -S {path.socket}; then "+\
       f"  if test -e {path.db}/done.set_root_password; then"+\
-      f"    if ! mysql -u root --password={config['dbrootpass']} "+\
+      f"    if ! mysql -u {config['sysuser']} --password={config['dbrootpass']} "+\
       f"               -S {path.socket} -e';'; then "+\
       f"      rm {path.socket}; "+\
       f"      echo 'restarting DB server...';"+\
       f"      mysqld_safe --datadir={path.dbdata}"+\
+      f"           --log-error={path.socket}.log.err"+\
+      f"           --pid-file={path.socket}.pid"+\
       f"           --socket={path.socket}"+\
       f"           --user={config['sysuser']} &"+\
        "      sleep 1;"+\
@@ -80,7 +82,8 @@ rule set_root_password:
         ;;
       *)
         echo "[PROSTDB] Using mysqladmin to change the DB root password"
-        mysqladmin -u root --socket={input.socket} password {config[dbrootpass]}
+        mysqladmin -u {config[sysuser]} \
+            --socket={input.socket} password {config[dbrootpass]}
         ;;
       esac
     """
@@ -96,7 +99,7 @@ rule create_db:
     COMMANDS="CREATE DATABASE \`{config[dbname]}\`; "
     COMMANDS+="CREATE DATABASE \`{config[testdbname]}\`; "
     echo ${{COMMANDS}}
-    echo "${{COMMANDS}}" | mysql -u root \
+    echo "${{COMMANDS}}" | mysql -u {config[sysuser]} \
                            --password={config[dbrootpass]} \
                            --socket={input.socket}
     """
@@ -118,7 +121,7 @@ rule create_dbuser:
     COMMANDS+="  '{config[dbuser]}'@localhost; "
     COMMANDS+="FLUSH PRIVILEGES;"
     echo ${{COMMANDS}}
-    echo "${{COMMANDS}}" | mysql -u root \
+    echo "${{COMMANDS}}" | mysql -u {config[sysuser]} \
                            --password={config[dbrootpass]} \
                            --socket={input.socket}
     """
@@ -133,6 +136,8 @@ rule start_server:
   shell:
     """
     mysqld_safe --datadir={input.datadir} \
+                --log-error={path.socket}.log.err\
+                --pid-file={path.socket}.pid\
                 --socket={output.socket} \
                 --user={config[sysuser]} &
     """
@@ -143,7 +148,7 @@ rule stop_server:
     socket=ancient(path.socket)
   shell:
     """
-    mysqladmin -u root --password={config[dbrootpass]} \
+    mysqladmin -u {config[sysuser]} --password={config[dbrootpass]} \
                        --socket={input.socket} shutdown
     """
 
@@ -153,7 +158,7 @@ rule show_processes:
     socket=ancient(rules.start_server.output.socket)
   shell:
     """
-    mysqladmin processlist -u root \
+    mysqladmin processlist -u {config[sysuser]} \
         --password={config[dbrootpass]} \
         --socket={input.socket}
     """
@@ -189,7 +194,7 @@ rule root_connect:
   shell:
     """
     mysql --socket={input.socket} --database={config[dbname]} \
-          -u root --password={config[dbrootpass]}
+          -u {config[sysuser]} --password={config[dbrootpass]}
     """
 
 #
