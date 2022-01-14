@@ -1,4 +1,4 @@
-dataroot: /local/gonnella/data
+dataroot: /data/giorgio/prost
 bacdive_user: gonnella@zbh.uni-hamburg.de
 bacdive_pass: bacdivepass
 dbuser: prostuser
