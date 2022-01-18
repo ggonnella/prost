@@ -15,7 +15,7 @@ Options:
 {common}
 """
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, exc
 from dbschema.ncbi_taxonomy_db import NtNode
 from docopt import docopt
 from schema import Or, And, Use
@@ -40,22 +40,26 @@ def compute_rank_taxids(table_file, session, known_results, outfile):
     elems = line.rstrip().split("\t")
     accession = elems[0]
     if not accession in known_results:
-      prev_node_id = None
-      node_id = int(elems[1])
-      rank_ids = {}
-      while prev_node_id != node_id:
-        node_q = session.query(NtNode).filter(NtNode.tax_id==node_id)
-        node = node_q.one()
-        node_id = node.tax_id
-        rank_ids[node.rank] = node.tax_id
-        prev_node_id = node_id
-        node_id = node.parent_tax_id
-      output = [accession]
-      for rank in Ranks:
-        if rank in rank_ids:
-          output.append(str(rank_ids[rank]))
-        else:
-          output.append("None")
+      try:
+        prev_node_id = None
+        node_id = int(elems[1])
+        rank_ids = {}
+        while prev_node_id != node_id:
+          node_q = session.query(NtNode).filter(NtNode.tax_id==node_id)
+          node = node_q.one()
+          node_id = node.tax_id
+          rank_ids[node.rank] = node.tax_id
+          prev_node_id = node_id
+          node_id = node.parent_tax_id
+        output = [accession]
+        for rank in Ranks:
+          if rank in rank_ids:
+            output.append(str(rank_ids[rank]))
+          else:
+            output.append("None")
+      except exc.NoResultFound:
+        output = [accession, elems[1]]
+        output += ["None"]*len(Ranks)
       outfile.write("\t".join(output)+"\n")
       outfile.flush()
 
