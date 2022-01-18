@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+"""
+Tasks for computing a table of taxonomy IDs at each rank for each of the
+assemblies.
+
+This requires:
+- the accession summaries downloaded by download_ncbi_assemblies.snake
+- the ProstDB must be up and running using prostdb.snake
+- the NCBI taxonomy data must be downloaded using download_ncbi_taxonomy.snake
+  and uploaded into the ProstDB using prostdb_ncbi_taxonomy.snake
+"""
+from glob import glob
+import os
+import shutil
+import re
+import sh
+
+include: "common.snake"
+
+rule all:
+  input:
+    expand(str(path.accranks/"rsasm_taxid.{domain}.tsv"),
+        domain=config["domains"]),
+    expand(str(path.accranks/"rsasm_ranks.{domain}.done"),
+        domain=config["domains"])
+
+rule acccession_id_list:
+  input:
+    summary=path.asmsummary/"assembly_summary_refseq_{domain}.txt"
+  output:
+    table=path.accranks/"rsasm_taxid.{domain}.tsv"
+  shell:
+    """
+    grep -P -v '^#' {input.summary} | cut -d $'\\t' -f 1,6 > {output.table}
+    """
+
+rule accession_rank_list:
+  input:
+    table=path.accranks/"rsasm_taxid.{domain}.tsv",
+    dbsocket=ancient(path.socket)
+  params:
+    prev=str(path.accranks/"rsasm_ranks.{domain}.tsv")
+  output: touch(path.accranks/"rsasm_ranks.{domain}.done")
+  script: "scripts/ranks_for_assemblies.py"
+
