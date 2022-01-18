@@ -102,8 +102,9 @@ def compute_accessions(targets, outfile):
     if seqaccs is None:
       sys.stderr.write(f"ERROR: it was not possible to download {fn}\n")
       noferrors += 1
-    outfile.write("\t".join([gbasm, rsasm, ",".join(seqaccs)])+"\n")
-    outfile.flush()
+    else:
+      outfile.write("\t".join([gbasm, rsasm, ",".join(seqaccs)])+"\n")
+      outfile.flush()
   sys.stderr.write(f"Number of errors: {noferrors}\n")
 
 def open_outfile(args):
