@@ -16,5 +16,4 @@ def validate(args, *dicts):
   s = _schema.copy()
   for d in dicts:
     s.update(d)
-  print(s)
   return Schema(s).validate(args)
