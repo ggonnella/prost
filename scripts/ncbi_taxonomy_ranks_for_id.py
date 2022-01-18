@@ -11,7 +11,7 @@ Arguments:
 
 Output:
   - IDs of kingdom, phylum, class, order, family, genus, species
-  - one one line, tab separated
+  - on one line, tab separated
   - if <node> is over species level, for the missing nodes, "None" is output
 
 Options:
@@ -25,7 +25,8 @@ from schema import Use
 from lib import snake, db, scripts
 from sqlalchemy.orm import sessionmaker, aliased
 
-Ranks = ["superkingdom", "phylum", "class", "order", "family", "genus", "species"]
+Ranks = ["superkingdom", "phylum", "class", "order",
+         "family", "genus", "species"]
 
 def compute_ranks(args):
   engine = create_engine(db.connstr_from(args), echo=args["--verbose"])
