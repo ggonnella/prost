@@ -27,39 +27,45 @@ Ranks = ["superkingdom", "phylum", "class", "order",
          "family", "genus", "species"]
 
 def compute_known(filename):
-  result = set()
+  known = set()
+  computed = {}
   if filename and os.path.exists(filename):
     with open(filename) as f:
       for line in f:
         elems = line.rstrip().split("\t")
-        result.add(elems[0])
-  return result
+        known.add(elems[0])
+        computed[int(elems[1])] = elems[2:]
+  return known, computed
 
-def compute_rank_taxids(table_file, session, known_results, outfile):
+def compute_rank_taxids(table_file, session, known_results, computed, outfile):
   for line in table_file:
     elems = line.rstrip().split("\t")
     accession = elems[0]
     if not accession in known_results:
-      try:
-        prev_node_id = None
-        node_id = int(elems[1])
-        rank_ids = {}
-        while prev_node_id != node_id:
-          node_q = session.query(NtNode).filter(NtNode.tax_id==node_id)
-          node = node_q.one()
-          node_id = node.tax_id
-          rank_ids[node.rank] = node.tax_id
-          prev_node_id = node_id
-          node_id = node.parent_tax_id
-        output = [accession]
-        for rank in Ranks:
-          if rank in rank_ids:
-            output.append(str(rank_ids[rank]))
-          else:
-            output.append("None")
-      except exc.NoResultFound:
-        output = [accession, elems[1]]
-        output += ["None"]*len(Ranks)
+      query_node_id = int(elems[1])
+      ids = computed.get(query_node_id, [])
+      if not ids:
+        try:
+          node_id = query_node_id
+          prev_node_id = None
+          rank_ids = {}
+          while prev_node_id != node_id:
+            node_q = session.query(NtNode).filter(NtNode.tax_id==node_id)
+            node = node_q.one()
+            node_id = node.tax_id
+            rank_ids[node.rank] = node.tax_id
+            prev_node_id = node_id
+            node_id = node.parent_tax_id
+          for rank in Ranks:
+            if rank in rank_ids:
+              ids.append(str(rank_ids[rank]))
+            else:
+              ids.append("None")
+        except exc.NoResultFound:
+          ids = [elems[1]]
+          ids += ["None"]*len(Ranks)
+        computed[query_node_id] = ids
+      output = [accession] + ids
       outfile.write("\t".join(output)+"\n")
       outfile.flush()
 
@@ -74,12 +80,13 @@ def close_outfile(outfile, args):
     outfile.close()
 
 def main(args):
-  known_results = compute_known(args["--update"])
+  known_results, computed = compute_known(args["--update"])
   outfile = open_outfile(args)
   engine = create_engine(db.connstr_from(args), echo=args["--verbose"])
   Session = sessionmaker(bind=engine)
   session = Session()
-  compute_rank_taxids(args["<table>"], session, known_results, outfile)
+  compute_rank_taxids(args["<table>"], session, known_results, computed,
+      outfile)
   close_outfile(outfile, args)
 
 def validated(args):
