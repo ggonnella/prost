@@ -30,10 +30,11 @@ def compute_known(filename):
   computed = {}
   if filename and os.path.exists(filename):
     with open(filename) as f:
+      last_col = len(Ranks)+1
       for line in f:
         elems = line.rstrip().split("\t")
         known.add(elems[0])
-        computed[int(elems[1])] = elems[2:]
+        computed[int(elems[last_col])] = elems[1:last_col]
   return known, computed
 
 def compute_rank_taxids(summary_file, session, known_results,
@@ -64,10 +65,10 @@ def compute_rank_taxids(summary_file, session, known_results,
             else:
               ids.append("None")
         except exc.NoResultFound:
-          ids = [elems[1]]
-          ids += ["None"]*len(Ranks)
+          ids = ["None"]*len(Ranks)
+          ids += [str(query_node_id)]
         computed[query_node_id] = ids
-      output = [accession] + ids
+      output = [accession] + ids + [str(query_node_id)]
       outfile.write("\t".join(output)+"\n")
       outfile.flush()
 
