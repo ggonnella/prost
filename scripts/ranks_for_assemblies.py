@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
-Compute the taxonomy IDs for each rank for all accessions in a table.
+Compute the taxonomy IDs for each rank for all accessions in a summary table.
 
 Usage:
-  rs_seq_accessions_for_assemblies.py [options] {db_args_usage} <table>
+  rs_seq_accessions_for_assemblies.py [options] {db_args_usage} <summary>
 
 Arguments:
 {db_args}
-  table: table containing the accessions (column 1)
-         and taxonomy IDs (column 2)
+  summary: NCBI assembly summary file
 
 Options:
   --update, -u F            file with previous results, to update
@@ -37,12 +36,15 @@ def compute_known(filename):
         computed[int(elems[1])] = elems[2:]
   return known, computed
 
-def compute_rank_taxids(table_file, session, known_results, computed, outfile):
-  for line in table_file:
+def compute_rank_taxids(summary_file, session, known_results,
+                        computed, outfile):
+  for line in summary_file:
+    if line[0] == "#":
+      continue
     elems = line.rstrip().split("\t")
     accession = elems[0]
     if not accession in known_results:
-      query_node_id = int(elems[1])
+      query_node_id = int(elems[5])
       ids = computed.get(query_node_id, [])
       if not ids:
         try:
@@ -85,17 +87,17 @@ def main(args):
   engine = create_engine(db.connstr_from(args), echo=args["--verbose"])
   Session = sessionmaker(bind=engine)
   session = Session()
-  compute_rank_taxids(args["<table>"], session, known_results, computed,
+  compute_rank_taxids(args["<summary>"], session, known_results, computed,
       outfile)
   close_outfile(outfile, args)
 
 def validated(args):
   return scripts.validate(args, db.args_schema,
                           {"--update": Or(None, len),
-                           "<table>": And(str, Use(open))})
+                           "<summary>": And(str, Use(open))})
 
 if "snakemake" in globals():
-  args = snake.args(snakemake, db.snake_args, input=["<table>"],
+  args = snake.args(snakemake, db.snake_args, input=["<summary>"],
                     params=[("--update", "prev")])
   main(validated(args))
 elif __name__ == "__main__":
