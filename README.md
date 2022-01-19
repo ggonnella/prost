@@ -71,12 +71,12 @@ snakemake -j -s prostdb.snake
 snakemake -j -s prostdb_ncbi_taxonomy.snake
 
 # Compute accession tables:
-# (this takes several hours, since it downloads and temporarily decompress
+# (this takes e.g. 8 hours, since it downloads and temporarily decompress
 #  all genomic sequences, to extract the sequence accessions)
 snakemake -j -s compute_accession_tables.snake
 
 # Load the assembly summaries into the database
-snakemake -j -s prost_db_assembly_summaries.snake
+snakemake -j -s prostdb_assembly_summary.snake
 ```
 
 # Update strategy
@@ -94,7 +94,7 @@ snakemake -j -s prostdb_ncbi_taxonomy.snake
 # Update the accession tables
 snakemake -j -s compute_accession_tables.snake
 # Load the assembly summaries into the database
-snakemake -j -s prost_db_assembly_summaries.snake
+snakemake -j -s prostdb_assembly_summary.snake
 ```
 
 # Developer notes
