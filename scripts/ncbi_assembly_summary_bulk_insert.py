@@ -36,7 +36,7 @@ def elems2values(args, elems):
       elems[i] = None
   for i in range(22-len(elems)):
     elems.append(None)
-  result += elems[1:]
+  result += elems[1:22]
   return result
 
 def main(args):
