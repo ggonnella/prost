@@ -5,3 +5,4 @@ eg/
 tmp/
 prv.*
 *.fna.gz
+__pycache__
