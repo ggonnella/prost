@@ -25,7 +25,7 @@ rule create_tables:
   output:
     touch(path.tables/"done.create_tables.{dbmodule}")
   script:
-    "scripts/db_create_tables.py"
+    "../scripts/db_create_tables.py"
 
 rule create_attributes:
   input:
@@ -38,7 +38,7 @@ rule create_attributes:
   output:
     done=touch(path.tables/"done.create_attributes")
   script:
-    "scripts/db_attributes.py"
+    "../scripts/db_attributes.py"
 
 def plugin_module_path(w):
   pfx = os.path.join(workflow.basedir, f"scripts/plugins/{w.plugin}")
@@ -76,7 +76,7 @@ checkpoint compute_on_local_refseq_files:
     verbose=True,
     serial=False
   script:
-    "scripts/batch_compute.py"
+    "../scripts/batch_compute.py"
 
 rule load_results:
   input:
@@ -88,7 +88,7 @@ rule load_results:
   output:
     touch(path.attrs/"done.load.{plugin}.{datasrc}.{domain}")
   script:
-    "scripts/db_load_results.py"
+    "../scripts/db_load_results.py"
 
 rule process_loaded:
   input:

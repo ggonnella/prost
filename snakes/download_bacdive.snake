@@ -34,7 +34,7 @@ rule update_id_list:
     ids=path.bacdive/"bacdive.ids",
     lastpage=path.bacdive/"bacdive.last_processed_idslist_page"
   params:
-    script=srcdir("scripts/bacdive_download_id_list.py"),
+    script=srcdir("../scripts/bacdive_download_id_list.py"),
     u=config["bacdive_user"],
     p=config["bacdive_pass"]
   shell:
@@ -69,7 +69,7 @@ rule download_strain_info:
   params:
     u=config["bacdive_user"],
     p=config["bacdive_pass"],
-    script=srcdir("scripts/bacdive_download_strain_info.py")
+    script=srcdir("../scripts/bacdive_download_strain_info.py")
   shell:
     """
     {params.script} --previous {input.details} \

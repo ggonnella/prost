@@ -62,7 +62,7 @@ rule update_gbseq_list:
   params:
     prev=str(path.accessions/"gbasm_rsasm_gbseq.{domain}.tsv")
   output: touch(path.accessions/"gbasm_rsasm_gbseq.{domain}.done")
-  script: "scripts/gb_seq_accessions_for_assemblies.py"
+  script: "../scripts/gb_seq_accessions_for_assemblies.py"
 
 rule update_rsseq_list:
   input:
@@ -71,5 +71,5 @@ rule update_rsseq_list:
     prev=str(path.accessions/"rsasm_rsseq.{domain}.tsv"),
     globpattern=str(path.genomeseq/"{domain}/chunk.*")
   output: touch(path.accessions/"rsasm_rsseq.{domain}.done")
-  script: "scripts/rs_seq_accessions_for_assemblies.py"
+  script: "../scripts/rs_seq_accessions_for_assemblies.py"
 

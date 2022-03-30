@@ -29,5 +29,5 @@ rule accession_rank_list:
   params:
     prev=str(path.accranks/"rsasm_ranks.{domain}.tsv")
   output: touch(path.accranks/"rsasm_ranks.{domain}.done")
-  script: "scripts/ranks_for_assemblies.py"
+  script: "../scripts/ranks_for_assemblies.py"
 

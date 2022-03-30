@@ -22,7 +22,7 @@ rule create_tables:
   output:
     touch(path.tables/"done.create_tables.ncbi_assembly_summary")
   script:
-    "scripts/db_create_tables.py"
+    "../scripts/db_create_tables.py"
 
 rule insert:
   input:
@@ -35,4 +35,4 @@ rule insert:
   params:
     update=True
   script:
-    "scripts/ncbi_assembly_summary_bulk_insert.py"
+    "../scripts/ncbi_assembly_summary_bulk_insert.py"

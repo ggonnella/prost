@@ -17,14 +17,14 @@ rule load_all:
 rule create_table:
   input:
     dbsocket=ancient(path.socket),
-    schema=srcdir("scripts/dbschema/ncbi_taxonomy_db.py"),
+    schema=srcdir("../scripts/dbschema/ncbi_taxonomy_db.py"),
     dump=path.tax/"{table}.dmp"
   params:
     table="nt_{table}",
     drop=True
   output:
     done=touch(path.tables/"done.create_tables.ncbi_taxonomy.{table}")
-  script: "scripts/db_create_tables.py"
+  script: "../scripts/db_create_tables.py"
 
 rule load_data:
   input:
@@ -33,13 +33,13 @@ rule load_data:
     done_create_tables=path.tables/"done.create_tables.ncbi_taxonomy.{table}"
   params:
     table="nt_{table}",
-    dbschema=srcdir("scripts/dbschema/ncbi_taxonomy_db.py"),
+    dbschema=srcdir("../scripts/dbschema/ncbi_taxonomy_db.py"),
     ncbidmp=True,
     ignore=True,
     dropkeys=True
   output:
     done=temp(touch(path.tables/"done.load.ncbi_taxonomy.{table}"))
-  script: "scripts/db_load_data.py"
+  script: "../scripts/db_load_data.py"
 
 rule get_subtree:
   input:
@@ -47,4 +47,4 @@ rule get_subtree:
     dbsocket=ancient(path.socket)
   params:
     root=config.get("root")
-  script: "scripts/ncbi_taxonomy_db_extract_subtree.py"
+  script: "../scripts/ncbi_taxonomy_db_extract_subtree.py"

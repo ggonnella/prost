@@ -17,7 +17,7 @@ rule summarize_json_records:
     path.bacdive/"{pfx}.details.info"
   shell:
     """
-    scripts/summarize_json_records.py {input} 4 > {output}
+    ../scripts/summarize_json_records.py {input} 4 > {output}
     """
 
 rule extract_bacdive_accessions:
@@ -27,7 +27,7 @@ rule extract_bacdive_accessions:
     accessions=path.bacdive/"bacdive.accessions.tsv"
   shell:
     """
-    scripts/extract_bacdive_values.py {input.details} seq_acc_num > \
+    ../scripts/extract_bacdive_values.py {input.details} seq_acc_num > \
         {output.accessions}
     """
 
@@ -38,7 +38,7 @@ rule extract_bacdive_strainnumbers:
     path.bacdive/"bacdive.strain_numbers.tsv"
   shell:
     """
-    scripts/extract_bacdive_values.py {input} strain_number --split , > {output}
+    ../scripts/extract_bacdive_values.py {input} strain_number --split , > {output}
     """
 
 rule match_bacdive_ids_with_gbasm_accessions:
@@ -49,7 +49,7 @@ rule match_bacdive_ids_with_gbasm_accessions:
     temp(path.bacdive/"bdid_rsasm.by_gbasm.{domain}.tsv")
   shell:
     """
-    scripts/match_accessions.py {input.bd_accessions} 1 2 \
+    ../scripts/match_accessions.py {input.bd_accessions} 1 2 \
                     {input.asm2seq} 1 2 --strip > {output}
     """
 
@@ -61,7 +61,7 @@ rule match_bacdive_ids_with_rsasm_accessions:
     temp(path.bacdive/"bdid_rsasm.by_rsasm.{domain}.tsv")
   shell:
     """
-    scripts/match_accessions.py {input.bd_accessions} 1 2 \
+    ../scripts/match_accessions.py {input.bd_accessions} 1 2 \
                     {input.asm2seq} 1 1 --strip > {output}
     """
 
@@ -73,7 +73,7 @@ rule match_bacdive_ids_with_gbseq_accessions:
     temp(path.bacdive/"bdid_rsasm.by_gbseq.{domain}.tsv")
   shell:
     """
-    scripts/match_accessions.py {input.bd_accessions} 1 2 \
+    ../scripts/match_accessions.py {input.bd_accessions} 1 2 \
                     {input.asm2seq} 3 2 --strip --multi > {output}
     """
 
@@ -85,7 +85,7 @@ rule match_bacdive_ids_with_rsseq_accessions:
     temp(path.bacdive/"bdid_rsasm.by_rsseq.{domain}.tsv")
   shell:
     """
-    scripts/match_accessions.py {input.bd_accessions} 1 2 \
+    ../scripts/match_accessions.py {input.bd_accessions} 1 2 \
                     {input.asm2seq} 2 1 --strip --multi > {output}
     """
 
@@ -126,7 +126,7 @@ rule show_structure:
     structure=path.bacdive/"bacdive.w_complete_g.structure"
   shell:
     """
-    scripts/json_tree_leaves.py {input} 4 1 > {output.structure}
+    ../scripts/json_tree_leaves.py {input} 4 1 > {output.structure}
     """
 
 rule summary_paths:

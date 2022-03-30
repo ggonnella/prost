@@ -12,17 +12,17 @@ rule tabulize_json_data:
   input: tsv=path.bacdive/"bacdive.details"
   output: out=path.bacdive/"bacdive.details.tabdata"
   params: colnum=4, pfx="bd", idcol="bacdive_id", idcolnum=1
-  script: "scripts/json_to_tabdata.py"
+  script: "../scripts/json_to_tabdata.py"
 
 rule generate_schema:
   input: tsv=rules.tabulize_json_data.output
-  output: out=srcdir("scripts/dbschema/bacdive_db.py")
-  script: "scripts/tabdata_to_dbschema.py"
+  output: out=srcdir("../scripts/dbschema/bacdive_db.py")
+  script: "../scripts/tabdata_to_dbschema.py"
 
 rule create_tables:
   input: dbsocket=path.socket, schema=rules.generate_schema.output[0]
   output: touch(path.tables/"done.create_tables.bacdive")
-  script: "scripts/db_create_tables.py"
+  script: "../scripts/db_create_tables.py"
 
 rule insert:
   input:
@@ -31,4 +31,4 @@ rule insert:
     data=rules.tabulize_json_data.output[0]
   output:
     touch(path.tables/"done.insert.bacdive")
-  script: "scripts/bacdive_db_bulk_insert.py"
+  script: "../scripts/bacdive_db_bulk_insert.py"
