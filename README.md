@@ -3,21 +3,50 @@
 Prost is a system for the computation, storage and comparison of genomic data.
 The name derives from `PROkaryote genome STatistics`.
 
-The main components of the system are:
+The core component of the system is a database, named ProstDB, which stores:
 
-- ProstDB: a database, conceived using MariaDB (but it can be probably easily
-  adapted to other SQL database management systems), for storing genomic
-  metadata and the results of computations on genomes, including detailled
-  computation tracing information
+- metadata about genome assemblies
+- attributes: any kind of information collected or computed,
+              about all or some of the genome assemblies
+- computation tracing information
+- taxonomic data (a mirror of NCBI taxonomy)
+- phenotype data
 
-- ProstPy: a library of Python scripts, with a command line interface, as well
+ProstDB is implemented using the MariaDB database management system.
+
+Furthermore, the system consists in programs, which allow to create, update,
+compute new attributes, interact with the database and analyse the data
+contained in it.
+
+These are organized as follows:
+
+- ProstPy
+  a library of Python scripts, with a command line interface, as well
   as a SnakeMake API, which support the operations on the ProstDB database and
-  on genomic data; the library supports plugins written in Python, Nim and Rust
+  on genomic data
 
-- ProstSnakes: a collection of pipeline scripts, based on SnakeMake, which
-  automatically download and keep uptodata data from external databases, store
-  data in the ProstDB database, start computations and comparison tasks
-  based on the ProstPy library etc
+- ProstPlugins
+  plugins, written in Python, Nim and Rust that compute or collect data
+  about the assemblies (attributes); each plugin computes one or multiple
+  attributes; the user can write own plugins, according to the provided
+  documentation (``plugins/README.md``); scripts for automatically checking
+  the plugin interface are provided
+
+- ProstSnakes
+  a collection of pipeline scripts, based on SnakeMake, which
+  automatically download and keep uptodata data from external databases, setup
+  ProstDB and store the downloaded data in it, perform attributes computations
+  and store the data in ProstDB, perform comparison tasks based on the ProstPy
+  library and more.
+
+## Code organization
+
+- ProstPy executable scripts are included in ``scripts``
+- code common to multiple ProstPy scripts is stored under ``scripts/lib``
+- ProstDB schema modules and further code to interact with the database
+  is stored under ``scripts/dbschema``
+- ProstPlugins are stored under ``plugins``
+- ProstSnakes are stored under ``snakes``
 
 ## Documentation
 
