@@ -9,15 +9,27 @@ import sys
 
 configfile: srcdir("config.yaml")
 
-def check_config_var(config, varname):
+def check_config_var(config, varname, helpmsg=None):
   if varname not in config or config[varname] is None:
     sys.stderr.write(f"Errot: '{varname}' not set in config.yaml\n\n")
+    if helpmsg is not None:
+      sys.stderr.write(f"\nHelp:\n{helpmsg}\n\n")
     exit(1)
+
+help_dataroot="""
+dataroot in config.yaml shall be set to the path of the (writable)
+directory where the database and other information shall be stored
+"""
+
+help_sysuser="""
+sysuser in config.yaml shall be set to the name of the user which
+is setting up the system; it is needed during setup
+"""
 
 # the following must be provided by the user and
 # an error will be output if the user does not do that
-check_config_var(config, "dataroot")
-check_config_var(config, "sysuser")
+check_config_var(config, "dataroot", help_dataroot)
+check_config_var(config, "sysuser", help_sysuser)
 
 # the following are set in the provided config.yaml file
 check_config_var(config, "dbuser")
