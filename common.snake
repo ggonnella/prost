@@ -5,8 +5,27 @@ This file contains common variable definitions.
 
 import types
 import pathlib
+import sys
 
 configfile: srcdir("config.yaml")
+
+def check_config_var(config, varname):
+  if varname not in config or config[varname] is None:
+    sys.stderr.write(f"Errot: '{varname}' not set in config.yaml\n\n")
+    exit(1)
+
+# the following must be provided by the user and
+# an error will be output if the user does not do that
+check_config_var(config, "dataroot")
+check_config_var(config, "sysuser")
+
+# the following are set in the provided config.yaml file
+check_config_var(config, "dbuser")
+check_config_var(config, "dbpass")
+check_config_var(config, "dbname")
+check_config_var(config, "testdbname")
+check_config_var(config, "dbrootpass")
+check_config_var(config, "domains")
 
 # directory structure under the data directory
 r = pathlib.Path(config["dataroot"])
