@@ -1,5 +1,0 @@
-
-
-sequence	counts	n_chromosomes	Number of chromosomes			
-sequence	counts	genome_length	Genome length	Total length of all molecules covered by the assembly		
-sequence	composition	gc_percent	GC percent	Number of G and C bases in the whole genome		

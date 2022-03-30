@@ -1,5 +1,0 @@
-# name	qualifiers	definition	unit	report_text	xref_equiv	xref_is_a
-genome_length		Total length of the sequences in a complete genome assembly	bp	Genome length		EDAM_data:1249
-feature_type_count	feature_type	Number of sequence features in a complete genome with a given feature_type (term in the SOFA subset of SO ontology) or any of the subclasses of the term		Number of {feature_type}		
-GC_content		Percent of G and C in the genome sequence	%	GC content		EDAM_data:1261
-kmer_frequency	kmer	Frequency of a given subsequence of length k among all subsequences of that length from the genome sequence		Frequency of kmer {kmer}		EDAM_data:1266
