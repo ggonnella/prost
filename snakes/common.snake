@@ -7,7 +7,7 @@ import types
 import pathlib
 import sys
 
-configfile: srcdir("../config.yaml")
+configfile: srcdir("config.yaml")
 
 def check_config_var(config, varname, helpmsg=None):
   if varname not in config or config[varname] is None:
