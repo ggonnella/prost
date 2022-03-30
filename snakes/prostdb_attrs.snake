@@ -21,7 +21,7 @@ rule create_all_tables:
 rule create_tables:
   input:
     dbsocket=ancient(path.socket),
-    schema=srcdir("scripts/dbschema/{dbmodule}.py")
+    schema=srcdir("../scripts/dbschema/{dbmodule}.py")
   output:
     touch(path.tables/"done.create_tables.{dbmodule}")
   script:
@@ -30,7 +30,7 @@ rule create_tables:
 rule create_attributes:
   input:
     dbsocket=ancient(path.socket),
-    definitions=srcdir("scripts/plugins/attributes.yaml"),
+    definitions=srcdir("../plugins/attributes.yaml"),
     done=rules.create_all_tables.output.done
   params:
     update=True,
@@ -41,7 +41,7 @@ rule create_attributes:
     "../scripts/db_attributes.py"
 
 def plugin_module_path(w):
-  pfx = os.path.join(workflow.basedir, f"scripts/plugins/{w.plugin}")
+  pfx = os.path.join(workflow.basedir, f"../plugins/{w.plugin}")
   result = pfx+".py" if os.path.exists(pfx+".py") else pfx+".nim"
   return ancient(result)
 
@@ -63,7 +63,7 @@ checkpoint compute_on_local_refseq_files:
     plugin=plugin_module_path,
     ts=path.asmsummary/"assembly_summary_refseq_{domain}.update_timestamp",
     idsproc=ancient(\
-        srcdir("scripts/plugins/refseq_accession_from_filename.py"))
+        srcdir("../plugins/refseq_accession_from_filename.py"))
   log:
     out=str(path.attrs/"{plugin}.{datasrc}.{domain}.new_data.tsv"),
     log=str(path.attrs/"{plugin}.{datasrc}.{domain}.log")
