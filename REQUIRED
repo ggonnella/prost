@@ -1,8 +1,10 @@
+sqlalchemy
+schema
 mysql
-
-sqlalchemy-repr
+sqlalchemy_repr
 icecream
+colorama
+mariadb
 gffutils
-
-
-nimble install zip
+sh
+docopt

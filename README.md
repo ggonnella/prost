@@ -39,10 +39,11 @@ git update-index --skip-worktree config.yaml
 
 The following software is required:
 - Python3
-- several Python libraries (sqlalchemy, sqlalchemy-repr, icecream, mariadb,
-gffutils, sh)
+  - several Python libraries, which can be installed using
+  ``pip install -r REQUIRED``
 - MariaDB (it can also a non-root user installation)
 - Nim and/or Rust for the Nim/Rust plugins
+  - Nimble libraries: zip
 
 If MariaDB is installed without using the package manager, the path of the
 shared library must be communicated to the Python connector; this can be
