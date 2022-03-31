@@ -29,7 +29,7 @@ These are organized as follows:
   plugins, written in Python, Nim and Rust that compute or collect data
   about the assemblies (attributes); each plugin computes one or multiple
   attributes; the user can write own plugins, according to the provided
-  documentation (``plugins/README.md``); scripts for automatically checking
+  documentation (``docs/prost_plugins.md``); scripts for automatically checking
   the plugin interface are provided
 
 - ProstSnakes
@@ -51,8 +51,10 @@ These are organized as follows:
 ## Documentation
 
 For further information, see the documentation under ``docs``:
-- ``installation.py`` describes how to install and setup Prost on a new system
-- ``prostdb_setup.py`` describes how to create the database, download the data
+- ``installation.md`` describes how to install and setup Prost on a new system
+- ``prostdb_setup.md`` describes how to create the database, download the data
   and load it into the database, after the setup is completed
-- ``prostdb_update.py`` describes how to automatically update the data from
+- ``prostdb_update.md`` describes how to automatically update the data from
   external sources
+- ``prost_plugins.md`` describes how to implement a plugin for attribute
+  computation

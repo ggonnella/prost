@@ -1,6 +1,26 @@
-# Interface of a plugin
+This document describes the interface of plugins for Prost.
 
-# Compute function
+Plugins are used for computing _attributes_, i.e. values associated to each
+_unit_. In the current implementation an unit is a genome assembly.
+Each plugin computes one or multiple attributes. Each
+attribute can consist in a single value or a group of values (e.g. a computation
+result and a score).
+
+Plugins can be written in Python, Nim and Rust.
+
+The components of a plugin are:
+- metadata, in the form of constants, describing the plugin itself,
+  the data returned by it and the resources necessary for the computation
+- a ``compute`` function which computes the value of the attribute(s) for
+  a given unit, accepting parameters
+- optionally: functions for setting up and deleting resources used for an
+  entire batch computation (e.g. library or database initializations); these
+  functions are called only once (at the beginning and end of the batch
+  computation), while ``compute`` is callled for each unit of the batch
+
+# Python
+
+## Compute function
 
 The plugin shall export the `compute(unit, **kwargs)` function:
 - `unit`: identifier of the input data, or name of the file with the input data
@@ -63,9 +83,9 @@ In this case the plugin has the following interface:
  - `finalize(state)`: optional, if needed for closing/destroying/freeing
    the resources of the state; called once, after the batch computation
 
-## Rust plugins
+# Rust
 
-Plugins can be implemented in Rust using "pyo3".
+Plugins are implemented in Rust using the "pyo3" library.
 
 The constants must be defined as a class Constants. Use static lifetime,
 eg.:
@@ -100,13 +120,13 @@ are exported:
 }
 ```
 
-### Internals of constant export
+## Internals of constant export
 
 Since top-level constants cannot be exported, the class Constants is created.
 In the import module (under lib/mod.py), the constants in the class are moved
 to the module and the Constants class is deleted.
 
-## Nim plugins
+# Nim
 
 Plugins can be implemented in Nim using the `nimpy` library.
 
@@ -114,7 +134,7 @@ Besides `nimpy`, the plugin shall import the `plugins_helpers` module
 and call the template `export_template_metadata()`, after the definition
 of the metadata constants.
 
-### Compute function in Nim
+## Compute function in Nim
 
 The compute function has the following signature, if there are no
 optional parameters:
@@ -132,7 +152,7 @@ proc compute(unit: string, p1: t1 = d1, p2: t2 = d2):
              tuple[results: seq[string]], logs: seq[string]] {.exportpy.}
 ```
 
-### Shared resources for batch computations in Nim
+## Shared resources for batch computations in Nim
 
 The resources can be e.g. stored in a ref object:
 
@@ -154,7 +174,7 @@ proc compute(filename: string, state: PluginState, ...
 proc finalize(s: PluginState) {.exportpy.} = discard
 ```
 
-### Internals of constant export
+## Internals of constant export
 
 The `nimpy` library does not yet allow to export constants to Python.
 
