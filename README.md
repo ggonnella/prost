@@ -50,9 +50,9 @@ These are organized as follows:
 
 ## Documentation
 
-For further information, see the documentation under ``manuals``:
-- ``setup.py`` describes how to install and setup Prost on a new system
-- ``init.py`` describes how to create the database, download the data and
-              load it into the database, after the setup is completed
-- ``update.py`` describes how to automatically update the data from external
-                sources
+For further information, see the documentation under ``docs``:
+- ``installation.py`` describes how to install and setup Prost on a new system
+- ``prostdb_setup.py`` describes how to create the database, download the data
+  and load it into the database, after the setup is completed
+- ``prostdb_update.py`` describes how to automatically update the data from
+  external sources
