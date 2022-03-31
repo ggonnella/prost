@@ -21,7 +21,7 @@ git update-index --skip-worktree config.yaml
 The following software is required:
 - Python3
   - several Python libraries, which can be installed using
-  ``pip install -r REQUIRED``
+  ``pip install -r requirements.txt``
 - MariaDB
   (it can also be a non-root user installation)
 
