@@ -1,1 +1,1 @@
-../plugins/plugin_helpers.nim
+../plugin_helpers.nim
