@@ -1,4 +1,41 @@
 #!/usr/bin/env python3
+"""
+Incrementally compute attribute values for all available assemblies.
+
+Usage:
+  snakemake -j -s prostdb_attrs.snake
+
+Setup:
+  - define the list of plugins and input sources to be used, in the
+    `plugins_datasrc` list in the "all" rule
+  - if the input source for a plugin is not the locally stored data
+    (fna, gff...) then a new "compute_..." rule must be defined
+    (e.g. if data is downloaded from an external database)
+
+Effects:
+  - computes not-yet computed attribute values for all assemblies
+    using the batch_compute.py (in parallel) and the specified plugins
+  - the results of the computation is first stored to file
+    (under path.attrs, which by default is <prostdatadir>/assembly_attributes)
+  - then the computation results and the attributes, plugin and computation
+    metadata are loaded into ProstDB
+
+Implementation:
+  - "all" requires "compute_and_load"; the requirements of this rule are
+    computed dynamically (input_of_compute_and_load function) and the rule
+    is executed twice, first in the "compute" phase and (since this is a
+    checkpoint which forces the recomputation of the prerequisites) a second
+    time in the "load" phase.
+  - the "compute" phase (computing the attribute values for the assemblies for
+    which the values were not computed yet) consists of checkpoint rules,
+    such as the "compute_on_local_refseq_files" rule
+  - the "load" phase (load the results and metadata of the computation into the
+    database) first makes sure that the database is prepared for storing the
+    metadata (create_attributes rule -> create_all_tables -> create_tables);
+    then it loads the attribute values and the metadata into the database
+    (process_loaded -> load_results)
+
+"""
 
 import os
 
