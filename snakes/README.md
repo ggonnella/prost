@@ -1,41 +1,40 @@
-# Code organization
+# ProstSnakes
 
-The tasks are defined in different snakemake files.
+ProstSnakes is a collection of Snakemake files (based on the ``snakemake`` tool),
+which define automated tasks for creating, interacting with, updating the Prost
+database, dowload external data, compute attributes and store the computation
+results into the database. These operations are done by automating and
+organizing calls to the ProstPy scripts (see ``scripts`` directory of the project).
 
-## ProstDB interaction
+The tasks are implemented in different modules (``*.snake`` files).
 
-The ``prostdb.snake`` is used for the basic interaction with the database, i.e.
-database creation, starting the server, stopping the server, connecting
-interactively to the server.
+Besides automation of the tasks, the main design goal is incremental update.
+So for example, only new assemblies are downloaded from NCBI Genomes each time.
+Then, only attributes of the new downloaded genomes are computed.
 
-## Download tasks
+## Configuration file and data location
 
-Files with the prefix ``download_..`` are used for tasks which download
-information from external sources. Whenever possible, these shall only download
-information which has changed, incrementally. This is not implemented for
-Bacdive.
+The configuration file (``config.yaml``) defines the base directory where data
+is stored (database, downloaded files, etc).  The subdirectories under this
+point to be used for different purposes are defined in the common module
+(``common.snake``), which is loaded by all other modules.
 
-## Compute tasks
+## Summary of the modules and tasks
 
-Files with prefix ``compute_..`` are used for computing data derived
-from the data downloaded from external sources.
+Modules are called using ``snakemake -j -s <SNAKEFILE> [<TASK>]``.
+If no ``<TASK>`` is specified, then the default task (``all``) is executed.
 
-## Loading data into ProstDB
+For brevity only the basename of the module (eg. without ``.snake`` extension)
+and the task (if any) are mentioned in the table below:
 
-Files with the prefix ``prostdb_..`` are use to load the data from external
-sources or from computations into the database.
-
-## Attributes
-
-The ``prostdb_attrs.snake`` is used for computing attributes and
-loading the computation results into the database.
-
-## Shared configuration
-
-The ``config.yaml`` file contains configuration data. Some of these are preset,
-some must be provided by the user. The ``common.snake`` file is used to load
-and check the data contained in ``config.yaml`` and compute from it common
-configuration variables.
-
-
+| Module and task         | Purpose                                            |
+|-------------------------|----------------------------------------------------|
+| ``prostdb``             | setup the database in a new system, or start the server if already setup |
+| ``prostdb connect``     | interactively connect to the database      |
+| ``download_ncbi_taxonomy`` | download the NCBI taxonomy database, if changed      |
+| ``prostdb_ncbi_taxonomy``  | load downloaded NCBI taxonomy data into the database |
+| ``download_ncbi_assemblies`` | incrementally download NCBI Genome assemblies      |
+| ``compute_accession_tables`` | compute the accession tables from the downloaded assemblies |
+| ``prostdb_assembly_summary`` | load NCBI assembly data to the database |
+| ``prostdb_attrs``            | compute attributes for all assemblies |
 
