@@ -128,8 +128,6 @@ def compute_all_ids(args, idproc, skip, verbose):
 def init_state_and_get_params(params, plugin):
   if plugin.initialize is not None:
     params["state"] = plugin.initialize(**params.get("state", {}))
-  elif "state" not in params:
-    params["state"] = None
   return params
 
 def on_failure(outfile, logfile, report, output_id, exc):
@@ -198,7 +196,7 @@ def main(args):
   run(all_ids, params, outfile, logfile, report, desc, args["--verbose"])
   report.finalize()
   if plugin.finalize is not None:
-    plugin.finalize(params["state"])
+    plugin.finalize(params.get("state", None))
   close_files(outfile, logfile)
 
 def validated(args):
