@@ -27,10 +27,11 @@ import yaml
 import sys
 import os
 import inspect
-from lib import snake, mod, scripts
+from lib import snake, scripts
+import multiplug
 
 def main(args):
-  plugin = mod.importer(args["<plugin>"], args["--verbose"])
+  plugin = multiplug.importer(args["<plugin>"], verbose=args["--verbose"])
   exit_code = 0
   if not hasattr(plugin, "compute"):
     sys.stderr.write("# [Error] plugin does not provide a compute function\n")

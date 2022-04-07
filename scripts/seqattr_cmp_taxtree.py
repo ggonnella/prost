@@ -29,7 +29,8 @@ from dbschema.ncbi_taxonomy_db import NtName
 import taxtree_query
 import cmpstat_distribution
 import batch_compute
-from lib import snake, db, scripts, mod, valid
+import multiplug
+from lib import snake, db, scripts, valid, plugins
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -51,17 +52,18 @@ def compare_to_subtree(session, engine, node, value, attribute):
  cmpstat_distribution.cmp_to_distri(value, values)
 
 def compute_results(plugin, genome, params):
-  if hasattr(plugin, "initialize"):
+  if plugin.initialize is not None:
     params["state"] = plugin.initialize(**params.get("state", {}))
   results, logs = plugin.compute(genome, **params)
-  if hasattr(plugin, "finalize"):
+  if plugin.finalize is not None:
     plugin.finalize(params["state"])
   return results
 
 def main(args):
   engine = create_engine(db.connstr_from(args), echo=args["--verbose"])
   session = sessionmaker(bind=engine)()
-  plugin = mod.importer(args["<plugin>"], args["--verbose"])
+  plugin = multiplug.importer(args["<plugin>"], verbose=args["--verbose"],
+                              **plugins.COMPUTE_PLUGIN_INTERFACE)
   node = args["<taxid>"]
   results = compute_results(plugin, args["<genome>"], args["--params"])
   value = float(results[plugin.OUTPUT.index(args["<attribute>"])])

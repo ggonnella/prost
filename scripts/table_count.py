@@ -8,9 +8,9 @@ Usage:
 Arguments:
   table:  tabular file (standard input if none provided)
           either a text file or gzip-compressed
-  module: python module, providing a dictionary "counters"
-          keys:   string
-          values: callable(row_dictionary) => bool
+  module: python module, providing a dictionary "counters":
+            keys:   string
+            values: callable(row_dictionary) => bool
 
 Output:
   tabular file with two columns (key, count)
@@ -23,7 +23,9 @@ Options:
   --fields, -f NAMES   comma-separated list of field names
                        default: from first line containing the delimiter
                                 (after removing the comment pfx, if any)
-  --check              run module check() function on each row
+  --check              run module check() function on each row;
+                       (in this case the module must provide a check function,
+                        taking a single argument, the row dictionary)
 {common}
 """
 
@@ -31,11 +33,12 @@ from docopt import docopt
 from schema import Or
 from collections import defaultdict
 import os
-from lib import snake, valid, tables, mod, scripts
+from lib import snake, valid, tables, scripts
+import multiplug
 
 def main(args):
   counts = defaultdict(int)
-  m = mod.py(args["<module>"], args["--verbose"])
+  m = multiplug.py(args["<module>"], verbose=args["--verbose"])
   for row in tables.get_dict_reader(args, args["<table>"]):
     for k, v in m.counters.items():
       if v(row): counts[k] += 1

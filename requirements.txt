@@ -9,3 +9,4 @@ mariadb
 gffutils
 sh
 docopt
+multiplug

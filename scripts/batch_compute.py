@@ -63,10 +63,11 @@ import os
 import sys
 from pathlib import Path
 from glob import glob
-from lib import snake, mod, valid, reports, scripts, formatting
+from lib import snake, valid, reports, scripts, formatting, plugins
 import tqdm
 from concurrent.futures import as_completed, ProcessPoolExecutor
 from functools import partial
+import multiplug
 
 def input_units(args):
   if args["<globpattern>"]:
@@ -89,9 +90,10 @@ def compute_skip_set(skip_arg, verbose):
     sys.stderr.write("# no skip list, all input units will be processed\n")
   return skip
 
-def get_mod_function(fn, fun, verbose):
-  if fn:
-    pmod = mod.importer(fn, verbose)
+def get_mod_function(filename, fun, verbose):
+  if filename:
+    pmod = multiplug.importer(filename, verbose=verbose,
+                              **plugins.IDPROC_PLUGIN_INTERFACE)
     return getattr(pmod, fun)
   else:
     return None
@@ -123,11 +125,12 @@ def compute_all_ids(args, idproc, skip, verbose):
     sys.stderr.write("done\n")
   return result
 
-def init_params_and_state(params, plugin):
-  state = plugin.initialize(**params.get("state", {})) \
-      if hasattr(plugin, "initialize") else None
-  if state: params["state"] = state
-  return params, state
+def init_state_and_get_params(params, plugin):
+  if plugin.initialize is not None:
+    params["state"] = plugin.initialize(**params.get("state", {}))
+  elif "state" not in params:
+    params["state"] = None
+  return params
 
 def on_failure(outfile, logfile, report, output_id, exc):
   outfile.flush()
@@ -182,18 +185,20 @@ def run_serially(all_ids, params, outfile, logfile, report, desc, verbose):
 def main(args):
   global plugin
   skip = compute_skip_set(args["--skip"], args["--verbose"])
-  plugin = mod.importer(args["<plugin>"], args["--verbose"])
+  plugin = multiplug.importer(args["<plugin>"], verbose=args["--verbose"],
+                              **plugins.COMPUTE_PLUGIN_INTERFACE)
   desc = formatting.shorten(Path(args["<plugin>"]).stem, 15)
   idproc = get_mod_function(args["--idsproc"], "compute_id",
                             args["--verbose"])
   report = reports.Report.from_args(plugin, args)
   outfile, logfile = open_files(args["--out"], args["--log"])
-  params, state = init_params_and_state(args["--params"], plugin)
+  params = init_state_and_get_params(args["--params"], plugin)
   all_ids = compute_all_ids(args, idproc, skip, args["--verbose"])
   run = run_serially if args["--serial"] else run_in_parallel
   run(all_ids, params, outfile, logfile, report, desc, args["--verbose"])
   report.finalize()
-  if hasattr(plugin, "finalize"): plugin.finalize(state)
+  if plugin.finalize is not None:
+    plugin.finalize(params["state"])
   close_files(outfile, logfile)
 
 def validated(args):

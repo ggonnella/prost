@@ -22,7 +22,8 @@ Options:
 """
 from docopt import docopt
 from schema import And, Or, Use
-from lib import snake, mod, plugins, db, scripts
+from lib import snake, plugins, db, scripts
+import multiplug
 import yaml
 import os
 from sqlalchemy import create_engine, inspect
@@ -40,7 +41,8 @@ def different_fields(obj1, obj2):
       result.append((c, v1, v2))
   return result
 
-def insert_update_or_compare(session, klass, newdata, primarykeys, replace, msg):
+def insert_update_or_compare(session, klass, newdata,
+                             primarykeys, replace, msg):
   newrow = klass(**newdata)
   oldrow = session.get(klass, primarykeys)
   if oldrow:
@@ -56,7 +58,8 @@ def insert_update_or_compare(session, klass, newdata, primarykeys, replace, msg)
     session.add(newrow)
 
 def process_plugin_description(session, plugin, replace):
-  insert_update_or_compare(session, PluginDescription, plugins.metadata(plugin),
+  insert_update_or_compare(session, PluginDescription,
+      plugins.plugin_metadata_str(plugin),
       [plugin.ID, plugin.VERSION], replace,
       "Plugin metadata changed, without a version change\n"
       "Please use the --replace-plugin-record option or increase the "+\
@@ -91,7 +94,8 @@ def main(args):
   with engine.connect() as connection:
     with connection.begin():
       session = Session(bind=connection)
-      plugin = mod.importer(args["<plugin>"], args["--verbose"])
+      plugin = multiplug.importer(args["<plugin>"], verbose=args["--verbose"],
+                                  **plugins.COMPUTE_PLUGIN_INTERFACE)
       process_plugin_description(session, plugin,
                                  args["--replace-plugin-record"])
       computation_id = process_computation_report(session, args["<report>"],
