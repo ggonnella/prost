@@ -140,6 +140,7 @@ rule start_server:
                 --pid-file={path.socket}.pid\
                 --socket={output.socket} \
                 --user={config[sysuser]} &
+    sleep 3
     """
 
 rule stop_server:
