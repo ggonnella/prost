@@ -10,8 +10,8 @@ IDPROC_PLUGIN_INTERFACE = {}
 IDPROC_PLUGIN_INTERFACE["req_func"] = ["compute_id"]
 
 def plugin_metadata_str(plugin):
-  metadata_keys = COMPLETE_PLUGIN_INTERFACE["req_const"] + \
-                  COMPLETE_PLUGIN_INTERFACE["opt_const"]
+  metadata_keys = COMPUTE_PLUGIN_INTERFACE["req_const"] + \
+                  COMPUTE_PLUGIN_INTERFACE["opt_const"]
   result = {k.lower(): getattr(plugin, k) \
               for k in metadata_keys if hasattr(plugin, k)}
   if "output" in result:
