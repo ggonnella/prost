@@ -39,15 +39,7 @@ def main(args):
   else:
     if args["--verbose"]:
       sys.stderr.write("# [OK] plugin provides a compute function\n")
-    if plugin.__lang__ == "nim":
-      if args["--verbose"]:
-        sys.stderr.write("# [Info] signature of plugin.compute() not analyzed, "+\
-            " since it is a Nim plugin\n")
-    elif plugin.__lang__ == "rust":
-      if args["--verbose"]:
-        sys.stderr.write("# [Info] signature of plugin.compute() not analyzed, "+\
-            " since it is a Rust plugin\n")
-    else:
+    if plugin.__lang__ == "python":
       compute_spec = inspect.getfullargspec(plugin.compute)
       if compute_spec.varargs is not None:
         sys.stderr.write("# [Error] "+\
@@ -92,6 +84,9 @@ def main(args):
           sys.stderr.write("# [Error] "+\
               "plugin.initialize() accepts variable keywords arguments\n")
           exit_code = 1
+    elif args["--verbose"]:
+      sys.stderr.write("# [Info] signature of plugin functions not analyzed, "+\
+          " since it is a {} plugin\n", plugin.__lang__)
   if hasattr(plugin, "finalize"):
     if not hasattr(plugin, "initialize"):
       sys.stderr.write("# [Error] "+\
@@ -144,7 +139,7 @@ def main(args):
       sys.stderr.write("# [ERROR] plugin.PARAMETERS is not a list\n")
       exit_code = 1
     for element in plugin.PARAMETERS:
-      if not isinstance(element, tuple):
+      if not isinstance(element, tuple) and not isinstance(element, list):
         sys.stderr.write("# [ERROR] "+\
             f"plugin.PARAMETER element not tuple: {element}\n")
         exit_code = 1
