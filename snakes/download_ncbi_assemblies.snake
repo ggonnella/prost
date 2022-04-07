@@ -4,6 +4,7 @@ import os
 import shutil
 import re
 import sh
+import datetime
 
 include: "common.snake"
 
@@ -125,15 +126,19 @@ rule select_complete_genomes_for_domain:
 def replace_url_scheme(url, scheme):
   return ":".join([scheme, url.split(":", 1)[1]])
 
+def now():
+  return datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+
 rule create_updating_plan:
   input:
     path.asmsummary/"complete_genomes_summary_refseq_{domain}.txt"
   params:
-    chunkspfx=str(path.genomes/"{filetype}/{domain}/chunk.")
+    chunkspfx=str(path.genomes/"{filetype}/{domain}/chunk."),
+    rep=report(str(path.reports/("updating_plan." + now() +\
+      ".report_{domain}.{filetype}.tsv")))
   output:
     new=temp(path.asmsummary/"complete_genomes_refseq_{domain}.{filetype}.new"),
-    obs=temp(path.asmsummary/"complete_genomes_refseq_{domain}.{filetype}.obsolete"),
-    rep=report("updating_plan.report_{domain}.{filetype}.tsv")
+    obs=temp(path.asmsummary/"complete_genomes_refseq_{domain}.{filetype}.obsolete")
   run:
     ext = ext_for_filetype[wildcards.filetype]
     filenames=set(os.path.basename(fn) for fn in \
@@ -158,9 +163,10 @@ rule create_updating_plan:
         n_obs += 1
     out_new.close()
     out_obs.close()
-    with open(output.rep, "w") as f:
+    with open(params.rep, "w") as f:
       f.write(f"n_new\t{n_new}\n")
       f.write(f"n_obsolete\t{n_obs}\n")
+    print("# update report was written to: ", params.rep)
 
 rule move_obsolete_genomes:
   input:
