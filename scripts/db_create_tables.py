@@ -20,10 +20,10 @@ Options:
 """
 from sqlalchemy.orm.session import sessionmaker
 from sqlalchemy import create_engine
-from docopt import docopt
 from schema import Or
-from lib import db, snake, scripts
+from lib import db, scripts
 import importlib
+import snacli
 
 def main(args):
   engine = create_engine(db.connstr_from(args), echo=args["--verbose"])
@@ -44,11 +44,10 @@ def validated(args):
   return scripts.validate(args, db.args_schema, {"<schema>": open,
     "<table>" : Or(None, str), "--drop": Or(None, True, False)})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, db.snake_args, input=["<schema>"],
-                    params=["<table>", "--drop", "--verbose"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(db_args = db.args_doc,
-    db_args_usage = db.args_usage, common = scripts.args_doc), version="0.1")
-  main(validated(args))
+with snacli.args(db.snake_args,
+                 input=["<schema>"],
+                 params=["<table>", "--drop", "--verbose"],
+                 docvars={"common": scripts.args_doc,
+                 "db_args": db.args_doc, "db_args_usage": db.args_usage},
+                 version="0.1") as args:
+  if args: main(validated(args))

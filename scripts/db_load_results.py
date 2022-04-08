@@ -20,10 +20,10 @@ Options:
                            report, if changed (default: fail if changed)
 {common}
 """
-from docopt import docopt
 from schema import And, Or, Use
-from lib import snake, plugins, db, scripts
+from lib import plugins, db, scripts
 import multiplug
+import sys
 import yaml
 import os
 from sqlalchemy import create_engine, inspect
@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 from dbschema.attribute import AttributeValueTables
 from dbschema.plugin_description import PluginDescription
 from dbschema.computation_report import ComputationReport
+import snacli
 
 def different_fields(obj1, obj2):
   result = []
@@ -112,13 +113,11 @@ def validated(args):
                    "--replace-plugin-record": Or(None, True, False),
                    "--replace-report-record": Or(None, True, False)})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, db.snake_args,
-        input=["<results>", "<report>", "<plugin>"],
-        params=["--replace-plugin-record", "--replace-report-record",
-                "--verbose"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(db_args=db.args_doc, db_args_usage=db.args_usage,
-               common=scripts.args_doc), version="0.1")
-  main(validated(args))
+with snacli.args(db.snake_args,
+                 input=["<results>", "<report>", "<plugin>"],
+                 params=["--replace-plugin-record", "--replace-report-record",
+                         "--verbose"],
+                 docvars={"common": scripts.args_doc,
+                 "db_args": db.args_doc, "db_args_usage": db.args_usage},
+                 version="0.1") as args:
+  if args: main(validated(args))

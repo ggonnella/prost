@@ -18,12 +18,12 @@ Options:
 {common}
 """
 
-from sqlalchemy import create_engine
-from dbschema.ncbi_taxonomy_db import NtNode
-from docopt import docopt
 from schema import Use
-from lib import snake, db, scripts
-from sqlalchemy.orm import sessionmaker, aliased
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+import snacli
+from dbschema.ncbi_taxonomy_db import NtNode
+from lib import db, scripts
 
 Ranks = ["superkingdom", "phylum", "class", "order",
          "family", "genus", "species"]
@@ -58,10 +58,9 @@ def main(args):
 def validated(args):
   return scripts.validate(args, db.args_schema, {"<node>": Use(int)})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, db.snake_args, params = ["<node>"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(db_args = db.args_doc, common = scripts.args_doc,
-    db_args_usage = db.args_usage), version="0.1")
-  main(validated(args))
+with snacli.args(db.snake_args,
+                 params = ["<node>"],
+                 docvars={"common": scripts.args_doc,
+                 "db_args": db.args_doc, "db_args_usage": db.args_usage},
+                 version="0.1") as args:
+  if args: main(validated(args))

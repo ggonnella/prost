@@ -14,14 +14,14 @@ Options:
 {common}
 """
 
-from docopt import docopt
 import sh
 import os
 import sys
 import tqdm
 import glob
-from lib import snake, scripts
+from lib import scripts
 from schema import Or
+import snacli
 
 def extract_fastaids(localfn):
   # zcat localfn | grep -P '^>' | cut -f1 -d' ' | cut -c2-
@@ -74,9 +74,7 @@ def main(args):
 def validated(args):
   return scripts.validate(args, {"--update": Or(None, len)})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, params=[("--update", "prev"), "<globpattern>"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
-  main(validated(args))
+with snacli.args(params=[("--update", "prev"), "<globpattern>"],
+                 docvars={"common": scripts.args_doc},
+                 version="0.1") as args:
+  if args: main(validated(args))

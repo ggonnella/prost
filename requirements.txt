@@ -10,3 +10,4 @@ gffutils
 sh
 docopt
 multiplug
+snacli

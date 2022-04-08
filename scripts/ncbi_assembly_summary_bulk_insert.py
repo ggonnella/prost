@@ -21,9 +21,9 @@ Options:
 import MySQLdb
 import tqdm
 import sh
-from docopt import docopt
 from schema import And, Use, Or
-from lib import db, snake, scripts
+from lib import db, scripts
+import snacli
 
 def elems2values(args, elems):
   result = [elems[0],
@@ -89,13 +89,11 @@ def validated(args):
            "--batch": Or(And(None, Use(lambda n: 20000)),
                          And(Use(int), lambda n: n>0))})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, db.snake_args,
-      input = [("<file>", "datasrc")],
-      wildcards = [("<database>", "db"), "<domain>"],
-      params = ["--update", "--batch"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(db_args = db.args_doc,
-     db_args_usage = db.args_usage, common = scripts.args_doc), version="0.1")
-  main(validated(args))
+with snacli.args(db.snake_args,
+                 input = [("<file>", "datasrc")],
+                 wildcards = [("<database>", "db"), "<domain>"],
+                 params = ["--update", "--batch"],
+                 docvars={"common": scripts.args_doc,
+                 "db_args": db.args_doc, "db_args_usage": db.args_usage},
+                 version="0.1") as args:
+  if args: main(validated(args))

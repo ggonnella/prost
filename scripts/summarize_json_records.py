@@ -14,11 +14,11 @@ Options:
 {common}
 """
 
-from docopt import docopt
 from schema import Use, And
 from collections import Counter
 import json
-from lib import scripts, snake
+from lib import scripts
+import snacli
 
 def json_collect_info(stdata, stinfo, key):
   if key not in stinfo:
@@ -137,9 +137,7 @@ def validated(args):
   colnum = And(Use(lambda i: int(i)-1), lambda i: i>=0)
   return scripts.validate(args, {"<tsvfile>": Use(open), "<colnum>": colnum})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, params=["<colnum>"], input=["<tsvfile>"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
-  main(validated(args))
+with snacli.args(params=["<colnum>"], input=["<tsvfile>"],
+                 docvars={"common": scripts.args_doc},
+                 version="0.1") as args:
+  if args: main(validated(args))

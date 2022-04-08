@@ -14,9 +14,9 @@ Options:
 {common}
 """
 import MySQLdb
-from docopt import docopt
 from schema import And
-from lib import snake, scripts, db
+from lib import scripts, db
+import snacli
 
 def main(args):
   db = MySQLdb.connect(host="localhost",
@@ -34,10 +34,9 @@ def main(args):
 def validated(args):
   return scripts.validate(args, db.args_schema, {"<table>": And(str, len)})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, db.snake_args, params = ["<table>"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(db_args = db.args_doc, common = scripts.args_doc,
-    db_args_usage = db.args_usage), version="0.1")
-  main(validated(args))
+with snacli.args(db.snake_args,
+                 params = ["<table>"],
+                 docvars={"common": scripts.args_doc,
+                 "db_args": db.args_doc, "db_args_usage": db.args_usage},
+                 version="0.1") as args:
+  if args: main(validated(args))

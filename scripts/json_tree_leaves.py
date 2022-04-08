@@ -36,10 +36,10 @@ Options:
 {common}
 """
 
-from docopt import docopt
 from schema import And, Use
-from lib import scripts, snake
+from lib import scripts
 import json
+import snacli
 
 def print_leaves(subtree, primarykey, pfx, last):
   if isinstance(subtree, dict):
@@ -64,10 +64,7 @@ def validated(args):
   return scripts.validate(args, {"<tsvfile>": Use(open),
            "<jsoncol>": colnum, "<idcol>": colnum})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake,
-      input=["<tsvfile>"], params=["<jsoncol>", "<idcol>"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
-  main(validated(args))
+with snacli.args(input=["<tsvfile>"], params=["<jsoncol>", "<idcol>"],
+                 docvars={"common": scripts.args_doc},
+                 version="0.1") as args:
+  if args: main(validated(args))

@@ -21,14 +21,14 @@ Options:
 {common}
 """
 
-from docopt import docopt
 from schema import And, Use
 import yaml
 import sys
 import os
 import inspect
-from lib import snake, scripts
+from lib import scripts
 import multiplug
+import snacli
 
 def main(args):
   plugin = multiplug.importer(args["<plugin>"], verbose=args["--verbose"])
@@ -161,9 +161,7 @@ def validated(args):
   return scripts.validate(args, {"<plugin>": os.path.exists,
     "<definitions>": And(str, Use(open), Use(yaml.safe_load))})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, input=["<plugin>", "<definitions>"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(common=scripts.args_doc), version="0.1")
-  main(validated(args))
+with snacli.args(input=["<plugin>", "<definitions>"],
+                 docvars={"common": scripts.args_doc},
+                 version="0.1") as args:
+  if args: main(validated(args))

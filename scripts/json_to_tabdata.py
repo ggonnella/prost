@@ -42,10 +42,10 @@ Options:
 """
 
 import sys
-from docopt import docopt
-from lib import scripts, snake
+from lib import scripts
 from schema import Use, And, Or
 import json
+import snacli
 
 NormalizedColnames = {
     "class": "klass"
@@ -94,10 +94,8 @@ def validated(args):
                   "<idcolnum>": Or(None, colnum),
                   "--out": opt_out})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, input=["<tsv>"], output=["out"],
-      params=["<colnum>", "<pfx>", "<idcol>", "<idcolnum>"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
-  main(validated(args))
+with snacli.args(input=["<tsv>"], output=["out"],
+                 params=["<colnum>", "<pfx>", "<idcol>", "<idcolnum>"],
+                 docvars={"common": scripts.args_doc},
+                 version="0.1") as args:
+  if args: main(validated(args))

@@ -13,9 +13,9 @@ Options:
 {common}
 """
 
-from docopt import docopt
 from schema import Or
-from lib import valid, scripts, snake
+from lib import valid, scripts
+import snacli
 
 def main(args):
   state = 0
@@ -37,10 +37,7 @@ def validated(args):
   return scripts.validate(args, {"<file>": valid.maygz_or_stdin,
                    "--one": Or(None, bool)})
 
-
-if "snakemake" in globals():
-  args = snake.args(snakemake, input=[("<file>", "gb")], params=["--one"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
-  main(validated(args))
+with snacli.args(input=[("<file>", "gb")], params=["--one"],
+                 docvars={"common": scripts.args_doc},
+                 version="0.1") as args:
+  if args: main(validated(args))

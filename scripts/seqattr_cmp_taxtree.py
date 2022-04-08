@@ -24,15 +24,14 @@ Options:
 """
 
 from schema import And, Use
-from docopt import docopt
 from dbschema.ncbi_taxonomy_db import NtName
 import taxtree_query
 import cmpstat_distribution
-import batch_compute
 import multiplug
-from lib import snake, db, scripts, valid, plugins
+from lib import db, scripts, valid, plugins
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import snacli
 
 def get_taxname(session, taxid):
   return session.query(NtName.name_txt).\
@@ -77,13 +76,10 @@ def validated(args):
     "<attribute>": And(str, len), "<plugin>": open, "<genome>": open,
     "<up>": Use(int), "--params": valid.yamlfile})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, db.snake_args,
+with snacli.args(db.snake_args,
     params = ["<taxid>", "<attribute>", "<up>"],
-    input = ["<plugin>", "<genome>", "--params"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(db_args = db.args_doc,
-                db_args_usage = db.args_usage, common = scripts.args_doc),
-                version="0.1")
-  main(validated(args))
+    input = ["<plugin>", "<genome>", "--params"],
+                 docvars={"common": scripts.args_doc,
+                 "db_args": db.args_doc, "db_args_usage": db.args_usage},
+                 version="0.1") as args:
+  if args: main(validated(args))

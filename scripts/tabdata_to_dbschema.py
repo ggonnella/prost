@@ -18,12 +18,12 @@ Options:
 {common}
 """
 
-from docopt import docopt
 from schema import Use, And, Or
 import json
 import textwrap
 import sys
-from lib import scripts, snake
+from lib import scripts
+import snacli
 
 def emit_prelude(args):
   args["--out"].write(textwrap.dedent("""\
@@ -105,9 +105,7 @@ def validated(args):
                    Use(lambda f: open(f, "w")))
   return scripts.validate(args, {"<tsv>": open, "--out": opt_out})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, input=["<tsv"], output=["--out"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
-  main(validated(args))
+with snacli.args(input=["<tsv"], output=["--out"],
+                 docvars={"common": scripts.args_doc},
+                 version="0.1") as args:
+  if args: main(validated(args))

@@ -21,13 +21,13 @@ Options:
   --testmode       use the parameters for tests
 {common}
 """
-from docopt import docopt
 from schema import And, Or, Use
-from lib import snake, db, scripts
+from lib import db, scripts
 import yaml
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from dbschema.attribute import AttributeDefinition, AttributeValueTables
+import snacli
 
 def update(connection, definitions):
   if definitions:
@@ -78,12 +78,10 @@ def validated(args):
        "--update": Or(None, True, False), "--testmode": Or(None, True, False),
        "--drop": Or(None, True, False), "--check": Or(None, True, False)})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, db.snake_args, input=["<definitions>"],
+with snacli.args(db.snake_args, input=["<definitions>"],
                     params=["--drop", "--check", "--update", "--testmode",
-                            "--verbose"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(db_args = db.args_doc,
-    db_args_usage=db.args_usage, common=scripts.args_doc), version="0.1")
-  main(validated(args))
+                            "--verbose"],
+                 docvars={"common": scripts.args_doc,
+                 "db_args": db.args_doc, "db_args_usage": db.args_usage},
+                 version="0.1") as args:
+  if args: main(validated(args))

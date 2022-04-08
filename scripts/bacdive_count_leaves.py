@@ -13,9 +13,9 @@ Options:
 {common}
 """
 
-from docopt import docopt
-from lib import scripts, snake
+from lib import scripts
 from schema import Use
+import snacli
 
 def perc(n_part, n_all):
   return "{:.1f}%".format((n_part / n_all) * 100)
@@ -50,9 +50,6 @@ def main(args):
 def validated(args):
   return scripts.validate(args, {"<file>": Use(open)})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, input=[("<file>", "data")])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(common=scripts.args_doc), version="0.1")
-  main(validated(args))
+with snacli.args(docvars={"common": scripts.args_doc},
+                 input=[("<file>", "data")], version="0.1") as args:
+   if args: main(validated(args))

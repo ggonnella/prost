@@ -13,10 +13,10 @@ Options:
 {common}
 """
 
-from docopt import docopt
 from schema import Or, Use
-from lib import snake, scripts
+from lib import scripts
 import scipy.stats
+import snacli
 
 def values_from_listfile(f):
   line = f.readline().rstrip()
@@ -95,10 +95,8 @@ def validated(args):
   return scripts.validate(args, {"<value>": Or(Use(int), Use(float)),
                           "<listfn>": Use(open)})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, params = ["<value>"],
-                    input=[("<listfn>", "list")])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(common=scripts.args_doc), version="0.1")
-  main(validated(args))
+with snacli.args(params = ["<value>"],
+                 input=[("<listfn>", "list")],
+                 docvars={"common": scripts.args_doc},
+                 version="0.1") as args:
+  if args: main(validated(args))

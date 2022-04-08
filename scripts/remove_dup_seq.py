@@ -12,11 +12,11 @@ Arguments:
 Options:
 {common}
 """
-from docopt import docopt
 from glob import glob
-from lib import scripts, snake
+from lib import scripts
 import os
 import sys
+import snacli
 
 def path2accession(path):
   return "_".join(path.split("/")[-1].split("_")[:2])
@@ -52,9 +52,7 @@ def main(args):
 def validated(args):
   return scripts.validate(args, {"<globpattern>": str})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, params = ["<globpattern>"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
-  main(validated(args))
+with snacli.args(params = ["<globpattern>"],
+                 docvars={"common": scripts.args_doc},
+                 version="0.1") as args:
+  if args: main(validated(args))

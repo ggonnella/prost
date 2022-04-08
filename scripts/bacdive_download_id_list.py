@@ -23,11 +23,11 @@ Options:
 """
 import requests
 from requests.auth import HTTPBasicAuth
-from docopt import docopt
 from schema import Use, Or
-from lib import snake, scripts
+from lib import scripts
 import sys
 import re
+import snacli
 
 def get(url, headers, credentials, verbose):
   if verbose:
@@ -98,10 +98,8 @@ def validated(args):
     "<username>": str, "<password>": str,
     "--done": Or(None, int)})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, log=["<idlist>"],
-                    params=["<username>", "<password>", "--done"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(common=scripts.args_doc), version="0.1")
-  main(validated(args))
+with snacli.args(log=["<idlist>"],
+                 params=["<username>", "<password>", "--done"],
+                 docvars={"common": scripts.args_doc},
+                 version="0.1") as args:
+  if args: main(validated(args))

@@ -29,12 +29,12 @@ Options:
 {common}
 """
 
-from docopt import docopt
 from schema import Or
 from collections import defaultdict
 import os
-from lib import snake, valid, tables, scripts
+from lib import valid, tables, scripts
 import multiplug
+import snacli
 
 def main(args):
   counts = defaultdict(int)
@@ -55,12 +55,9 @@ def validated(args):
                    "--delimiter": valid.delimiter,
                    "--check": Or(None, bool)})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake,
-        input=["<table>", "<module>"],
-        params=["--verbose", "--fields", "--comments", "--delimiter", "--check"]
-      )
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
-  main(validated(args))
+with snacli.args(input=["<table>", "<module>"],
+                 params=["--verbose", "--fields", "--comments",
+                         "--delimiter", "--check"],
+                 docvars={"common": scripts.args_doc},
+                 version="0.1") as args:
+  if args: main(validated(args))

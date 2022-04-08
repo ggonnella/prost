@@ -34,10 +34,9 @@ Options:
                    and re-compute them after inserting
 {common}
 """
-from docopt import docopt
 from schema import And, Or, Use
-from lib import scripts, snake, db, mysql, sqlwriter
-from icecream import ic
+from lib import scripts, db, mysql, sqlwriter
+import snacli
 
 def main(args):
   headerpfx = args["--headerpfx"] if args["--skipheader"] else ""
@@ -64,17 +63,16 @@ def validated(args):
                                      And(str, len)),
                    "--set": Or(None, open)})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, db.snake_args,
-        input=["<tsv>", ("--set", "common_values")],
-        params=["<table>", "<columns>", "--dbschema", "--ignore",
-                "--dropkeys", "--ncbidmp", "--skipheader", "--headerpfx",
-                "--skipfields"])
-  if args["--dbschema"]:
-    args["<columns>"] = [args["--dbschema"]]
-    args["--dbschema"] = True
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(db_args = db.args_doc, common = scripts.args_doc,
-           db_args_usage = db.args_usage), version="0.1")
-  main(validated(args))
+with snacli.args(db.snake_args,
+                 input=["<tsv>", ("--set", "common_values")],
+                 params=["<table>", "<columns>", "--dbschema", "--ignore",
+                         "--dropkeys", "--ncbidmp", "--skipheader",
+                         "--headerpfx", "--skipfields"],
+                 docvars={"common": scripts.args_doc,
+                 "db_args": db.args_doc, "db_args_usage": db.args_usage},
+                 version="0.1") as args:
+  if "snakemake" in globals():
+    if args["--dbschema"]:
+      args["<columns>"] = [args["--dbschema"]]
+      args["--dbschema"] = True
+  if args: main(validated(args))

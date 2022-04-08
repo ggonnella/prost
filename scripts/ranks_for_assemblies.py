@@ -14,13 +14,13 @@ Options:
 {common}
 """
 
+import os, sys
 from sqlalchemy import create_engine, exc
-from dbschema.ncbi_taxonomy_db import NtNode
-from docopt import docopt
+from sqlalchemy.orm import sessionmaker
 from schema import Or, And, Use
-from lib import snake, db, scripts
-import os
-from sqlalchemy.orm import sessionmaker, aliased
+import snacli
+from lib import db, scripts
+from dbschema.ncbi_taxonomy_db import NtNode
 
 Ranks = ["superkingdom", "phylum", "class", "order",
          "family", "genus", "species"]
@@ -97,11 +97,10 @@ def validated(args):
                           {"--update": Or(None, len),
                            "<summary>": And(str, Use(open))})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, db.snake_args, input=["<summary>"],
-                    params=[("--update", "prev")])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(db_args = db.args_doc, common=scripts.args_doc,
-    db_args_usage = db.args_usage), version="0.1")
-  main(validated(args))
+with snacli.args(db.snake_args,
+                 input=["<summary>"],
+                 params=[("--update", "prev")],
+                 docvars={"common": scripts.args_doc,
+                 "db_args": db.args_doc, "db_args_usage": db.args_usage},
+                 version="0.1") as args:
+  if args: main(validated(args))

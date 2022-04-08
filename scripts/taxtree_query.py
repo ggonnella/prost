@@ -20,10 +20,10 @@ from sqlalchemy import create_engine
 from dbschema.ncbi_taxonomy_db import NtNode
 from dbschema.ncbi_assembly_summary import NcbiAssemblySummary
 from dbschema.attribute import AttributeValueTables
-from docopt import docopt
-from lib import snake, db, scripts
+from lib import db, scripts
 from schema import And, Use, Or
 from sqlalchemy.orm import sessionmaker, aliased
+import snacli
 
 def traverse_up(session, node, levels):
   """
@@ -88,11 +88,9 @@ def validated(args):
                    "<attribute>": And(str, len),
                    "--up": Or(None, Use(int))})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, db.snake_args,
-           params = ["<root>", "<attribute>", "--up"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(db_args = db.args_doc,
-    db_args_usage = db.args_usage, common = scripts.args_doc), version="0.1")
+with snacli.args(db.snake_args,
+           params = ["<root>", "<attribute>", "--up"],
+                 docvars={"common": scripts.args_doc,
+                 "db_args": db.args_doc, "db_args_usage": db.args_usage},
+                 version="0.1") as args:
   main(validated(args))

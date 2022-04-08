@@ -26,10 +26,10 @@ import requests
 from requests.auth import HTTPBasicAuth
 import sys
 import hashlib
-from lib import snake, scripts
-from docopt import docopt
+from lib import scripts
 from datetime import datetime
 from schema import Use, Or
+import snacli
 
 def main(args):
   if args["--verbose"]:
@@ -73,11 +73,8 @@ def validated(args):
   return scripts.validate(args, {"<idlist>": Use(open), "<username>": str,
     "<password>": str, "--previous": Or(None, Use(open))})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, input=["<idlist>"],
-                    params=["<username>", "<password>", "--previous"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(common=scripts.args_doc), version="0.1")
-  main(validated(args))
-
+with snacli.args(input=["<idlist>"],
+                 params=["<username>", "<password>", "--previous"],
+                 docvars={"common": scripts.args_doc},
+                 version="0.1") as args:
+  if args: main(validated(args))

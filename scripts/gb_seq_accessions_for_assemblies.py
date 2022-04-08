@@ -15,13 +15,13 @@ Options:
 {common}
 """
 
-from docopt import docopt
 import sh
 import os
 import sys
 import tqdm
-from lib import snake, scripts
+from lib import scripts
 from schema import Or
+import snacli
 
 def is_complete(elems):
   """
@@ -129,12 +129,10 @@ def validated(args):
   return scripts.validate(args, {"--update": Or(None, str),
     "<summary>": open, "--complete": Or(None, bool)})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, params=[("--update", "prev")],
-                    input=["<summary>"])
-  args["--complete"]=True
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
-  main(validated(args))
-
+with snacli.args(params=[("--update", "prev")],
+                 input=["<summary>"],
+                 docvars={"common": scripts.args_doc},
+                 version="0.1") as args:
+  if "snakemake" in globals():
+    args["--complete"]=True
+  if args: main(validated(args))

@@ -21,9 +21,9 @@ Options:
 {common}
 """
 
-from docopt import docopt
 from schema import Use, And
-from lib import snake, scripts
+from lib import scripts
+import snacli
 
 def strip_version_number(acc_v):
   return acc_v.split(".")[0]
@@ -61,10 +61,8 @@ def validated(args):
     "<t1>": Use(open), "<t2>": Use(open),
     "<m1>": colnum, "<m2>": colnum, "<o1>": colnum, "<o2>": colnum})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake,
-      input=["<t1>", "<t2>"], params=["<m1>", "<m2>", "<o1>", "<o2>"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
-  main(validated(args))
+with snacli.args(input=["<t1>", "<t2>"],
+                 params=["<m1>", "<m2>", "<o1>", "<o2>"],
+                 docvars={"common": scripts.args_doc},
+                 version="0.1") as args:
+  if args: main(validated(args))

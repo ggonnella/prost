@@ -15,10 +15,10 @@ Options:
 {common}
 """
 
-from docopt import docopt
 from schema import Use, Or
-from lib import scripts, snake
+from lib import scripts
 import json
+import snacli
 
 def traverse(j, bacdive_id, pfx, last, key, split):
   if isinstance(j, dict):
@@ -48,9 +48,7 @@ def validated(args):
   return scripts.validate(args, {"<tsv>": Use(open), "<key>": str,
     "--split": Or(None, str)})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, input=["<tsv>"], params=["<key>", "--split"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(common=scripts.args_doc), version=0.1)
-  main(validated(args))
+with snacli.args(input=["<tsv>"], params=["<key>", "--split"],
+                 docvars={"common": scripts.args_doc},
+                 version="0.1") as args:
+  if args: main(validated(args))

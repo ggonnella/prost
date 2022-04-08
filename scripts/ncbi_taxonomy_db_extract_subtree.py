@@ -15,10 +15,10 @@ Options:
 
 from sqlalchemy import create_engine
 from dbschema.ncbi_taxonomy_db import NtNode
-from docopt import docopt
 from schema import Use
-from lib import snake, db, scripts
+from lib import db, scripts
 from sqlalchemy.orm import sessionmaker, aliased
+import snacli
 
 def main(args):
   engine = create_engine(db.connstr_from(args), echo=args["--verbose"])
@@ -39,10 +39,9 @@ def main(args):
 def validated(args):
   return scripts.validate(args, db.args_schema, {"<root>": Use(int)})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, db.snake_args, params = ["<root>"])
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(db_args = db.args_doc, common = scripts.args_doc,
-    db_args_usage = db.args_usage), version="0.1")
-  main(validated(args))
+with snacli.args(db.snake_args,
+                 params = ["<root>"],
+                 docvars={"common": scripts.args_doc,
+                 "db_args": db.args_doc, "db_args_usage": db.args_usage},
+                 version="0.1") as args:
+  if args: main(validated(args))

@@ -57,17 +57,16 @@ Options:
 {common}
 """
 
-from docopt import docopt
 from schema import Or
 import os
 import sys
 from pathlib import Path
 from glob import glob
-from lib import snake, valid, reports, scripts, formatting, plugins
+from lib import valid, reports, scripts, formatting, plugins
 import tqdm
 from concurrent.futures import as_completed, ProcessPoolExecutor
-from functools import partial
 import multiplug
+import snacli
 
 def input_units(args):
   if args["<globpattern>"]:
@@ -206,19 +205,18 @@ def validated(args):
        "<plugin>": os.path.exists, "--out": Or(None, str),
        "--log": Or(None, str), "--skip": Or(None, os.path.exists)})
 
-if "snakemake" in globals():
-  args = snake.args(snakemake, reports.snake_args,
-           input=["<plugin>", "--idsproc"],
-           log=["--out", "--log"],
-           params=["<globpattern>", "<idsfile>", "<col>", "--verbose",
-                   "--skip", "--serial"])
-  if args["--skip"] is None:
-    if args["--out"] and os.path.exists(args["--out"]):
-      args["--skip"] = args["--out"]
-    else:
-      args["--skip"] = None
-  main(validated(args))
-elif __name__ == "__main__":
-  args = docopt(__doc__.format(report_opts=reports.args_doc,
-    common=scripts.args_doc), version="0.1")
-  main(validated(args))
+with snacli.args(reports.snake_args,
+                 input=["<plugin>", "--idsproc"],
+                 log=["--out", "--log"],
+                 params=["<globpattern>", "<idsfile>", "<col>", "--verbose",
+                         "--skip", "--serial"],
+                 docvars={"common": scripts.args_doc,
+                          "report_opts": reports.args_doc},
+                 version="0.1") as args:
+  if "snakemake" in globals():
+    if args["--skip"] is None:
+      if args["--out"] and os.path.exists(args["--out"]):
+        args["--skip"] = args["--out"]
+      else:
+        args["--skip"] = None
+  if args: main(validated(args))
