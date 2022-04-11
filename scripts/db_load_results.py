@@ -39,6 +39,10 @@ def different_fields(obj1, obj2):
     v1 = getattr(obj1, c.name)
     v2 = getattr(obj2, c.name)
     if v1 != v2:
+      if hasattr(c, "default"):
+        if (v1 is None and v2 == c.default.arg) or \
+           (v2 is None and v1 == c.default.arg):
+          continue
       result.append((c, v1, v2))
   return result
 
