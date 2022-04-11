@@ -14,9 +14,9 @@ def plugin_metadata_str(plugin):
                   COMPUTE_PLUGIN_INTERFACE["opt_const"]
   result = {k.lower(): getattr(plugin, k) \
               for k in metadata_keys if hasattr(plugin, k)}
-  if "output" in result:
+  if "output" in result and result["output"] is not None:
     result["output"] = ",".join(result["output"])
-  if "parameters" in result:
+  if "parameters" in result and result["parameters"] is not None:
     result["parameters"] = ";".join([",".join(e) for e in result["parameters"]])
   return result
 
