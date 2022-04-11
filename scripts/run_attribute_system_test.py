@@ -8,16 +8,18 @@ from sqlalchemy.schema import MetaData
 import yaml
 from pathlib import Path
 import uuid
+import os
 
 ECHO=False
 ENVVAR="PROSTTEST"
-TESTDATA=Path("testdata")
+SELFPATH = Path(os.path.abspath(os.path.dirname(__file__)))
+TESTDATA = SELFPATH / ".." / "plugins" / "testdata"
 
 def create_tables():
   args = db.args_from_env(ENVVAR)
   args["--verbose"] = ECHO
   for mod in ["computation_report", "plugin_description", "attribute"]:
-    args["<file>"] = Path("dbschema")/f"{mod}.py"
+    args["<schema>"] = SELFPATH / "dbschema" / f"{mod}.py"
     db_create_tables.main(args)
 
 def run_create_attributes(definitions):
@@ -74,13 +76,13 @@ def check_no_attributes(definitions):
       assert(set(meta.tables[f"{pfx}{n}"].c.keys()) == {"accession"})
 
 def run_load_results(n):
-  with open(TESTDATA/f"fake_report{n}.yaml") as f:
-    args = db.args_from_env(ENVVAR)
-    args["<report>"] = f
-    args["<results>"] = TESTDATA/f"fake_results{n}.tsv"
-    args["<plugin>"] = TESTDATA/f"fake_plugin{n}.py"
-    args["--verbose"] = ECHO
-    db_load_results.main(args)
+  args = db.args_from_env(ENVVAR)
+  args["<report>"] = open(TESTDATA / f"fake_report{n}.yaml")
+  args["<results>"] = TESTDATA/f"fake_results{n}.tsv"
+  args["<plugin>"] = TESTDATA/f"fake_plugin{n}.py"
+  args["--verbose"] = ECHO
+  db_load_results.main(args)
+  args["<report>"].close()
 
 def run_destroy_attributes():
   args = db.args_from_env(ENVVAR)
@@ -183,34 +185,25 @@ def check_values_after_run(run):
         check_g3_t2(r[2][accession], run)
         check_g3_t3(r[3][accession], run)
 
-def drop_dangling_attribute_tables():
+def drop_dangling_tables():
   engine = create_engine(db.connstr_env(ENVVAR), echo=ECHO, future=True)
   with engine.connect() as connection:
     connection.execute(text("DROP TABLE IF EXISTS pr_attribute_definition"))
     for n in [0,1,2,3, "temporary"]:
       connection.execute(text(f"DROP TABLE IF EXISTS pr_attribute_value_t{n}"))
+    connection.execute(text("DROP TABLE IF EXISTS pr_computation_report"))
+    connection.execute(text("DROP TABLE IF EXISTS pr_attribute_definition"))
+    connection.execute(text("DROP TABLE IF EXISTS pr_plugin_description"))
 
-drop_dangling_attribute_tables()
+drop_dangling_tables()
 create_tables()
 with open(TESTDATA/"fake_attrs.yaml") as f:
   definitions = yaml.safe_load(f)
 run_create_attributes(definitions)
 check_attributes(definitions)
-run_load_results(1)
-check_values_after_run(1)
-run_load_results(2)
-check_values_after_run(2)
-run_load_results(1)
-check_values_after_run(1)
-run_load_results(3)
-check_values_after_run(3)
-run_load_results(4)
-check_values_after_run(4)
-run_load_results(5)
-check_values_after_run(5)
-run_load_results(6)
-check_values_after_run(6)
-run_load_results(7)
-check_values_after_run(7)
+for testn in [1, 2, 1, 3, 4, 5, 6, 7]:
+  print("Running test", testn)
+  run_load_results(testn)
+  check_values_after_run(testn)
 run_destroy_attributes()
 check_no_attributes(definitions)
