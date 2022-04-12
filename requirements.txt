@@ -11,3 +11,4 @@ sh
 docopt
 multiplug
 snacli
+attrtables

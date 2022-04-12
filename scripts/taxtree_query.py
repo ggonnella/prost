@@ -19,11 +19,12 @@ Options:
 from sqlalchemy import create_engine
 from dbschema.ncbi_taxonomy_db import NtNode
 from dbschema.ncbi_assembly_summary import NcbiAssemblySummary
-from dbschema.attribute import AttributeValueTables
 from lib import db, scripts
 from schema import And, Use, Or
 from sqlalchemy.orm import sessionmaker, aliased
 import snacli
+from dbschema.attributes import AttributeDefinition
+from attrtables import AttributeValueTables
 
 def traverse_up(session, node, levels):
   """
@@ -65,7 +66,9 @@ def values_for_accessions(session, engine, accessions, attribute):
   """
   Return all available values of an attribute, given a list of accessions
   """
-  avt = AttributeValueTables(engine)
+  avt = AttributeValueTables(engine,
+                             attrdef_class=AttributeDefinition,
+                             tablename_prefix="pr_attribute_value_t")
   t_sfx, vcolnames, ccolname, gcolname = avt.attribute_location(attribute)
   klass = avt.get_class(t_sfx)
   rows = session.query(klass).\

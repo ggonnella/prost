@@ -26,8 +26,9 @@ from lib import db, scripts
 import yaml
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
-from dbschema.attribute import AttributeDefinition, AttributeValueTables
+from dbschema.attribute import AttributeDefinition
 import snacli
+from attrtables import AttributeValueTables
 
 def update(connection, definitions):
   if definitions:
@@ -58,14 +59,19 @@ def insert(avt, definitions):
         adef = adef.copy()
         adt = adef["datatype"]
         del adef["datatype"]
-        avt.create_attribute(aname, adt, **adef)
+        computation_group = adef.get("computation_group", None)
+        if computation_group is not None:
+          del adef["computation_group"]
+        avt.create_attribute(aname, adt, computation_group, **adef)
 
 def main(args):
   engine = create_engine(db.connstr_from(args), echo=args["--verbose"],
                          future=True)
   with engine.connect() as connection:
     with connection.begin():
-      avt = AttributeValueTables(connection)
+      avt = AttributeValueTables(connection,
+                                 attrdef_class=AttributeDefinition,
+                                 tablename_prefix="pr_attribute_value_t")
       if args["--testmode"]: avt.TARGET_N_COLUMNS = 9
       if args["--check"]:  avt.check_consistency()
       if args["--update"]: update(connection, args["<definitions>"])

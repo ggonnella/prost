@@ -28,10 +28,11 @@ import yaml
 import os
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import Session
-from dbschema.attribute import AttributeValueTables
+from dbschema.attribute import AttributeDefinition
 from dbschema.plugin_description import PluginDescription
 from dbschema.computation_report import ComputationReport
 import snacli
+from attrtables import AttributeValueTables
 
 def different_fields(obj1, obj2):
   result = []
@@ -106,7 +107,9 @@ def main(args):
       computation_id = process_computation_report(session, args["<report>"],
                           plugin, args["--replace-report-record"])
       session.commit()
-      avt = AttributeValueTables(connection)
+      avt = AttributeValueTables(connection,
+                                 attrdef_class=AttributeDefinition,
+                                 tablename_prefix="pr_attribute_value_t")
       avt.load_computation(computation_id, plugin.OUTPUT, args["<results>"])
 
 def validated(args):
