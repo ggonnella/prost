@@ -69,10 +69,11 @@ def main(args):
                          future=True)
   with engine.connect() as connection:
     with connection.begin():
+      kwargs = {"target_n_columns": 9} if args["--testmode"] else {}
       avt = AttributeValueTables(connection,
                                  attrdef_class=AttributeDefinition,
-                                 tablename_prefix="pr_attribute_value_t")
-      if args["--testmode"]: avt.TARGET_N_COLUMNS = 9
+                                 tablename_prefix="pr_attribute_value_t",
+                                 **kwargs)
       if args["--check"]:  avt.check_consistency()
       if args["--update"]: update(connection, args["<definitions>"])
       if args["--drop"]:   drop(avt, args["<definitions>"])

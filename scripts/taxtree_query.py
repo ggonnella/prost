@@ -72,8 +72,8 @@ def values_for_accessions(session, engine, accessions, attribute):
   t_sfx, vcolnames, ccolname, gcolname = avt.attribute_location(attribute)
   klass = avt.get_class(t_sfx)
   rows = session.query(klass).\
-      filter(klass.c.accession.in_(accessions)).all()
-  return {row.accession: [getattr(row, cn) for cn in vcolnames] for row in rows}
+      filter(klass.c.entity_id.in_(accessions)).all()
+  return {row.entity_id: [getattr(row, cn) for cn in vcolnames] for row in rows}
 
 def main(args):
   engine = create_engine(db.connstr_from(args), echo=args["--verbose"])

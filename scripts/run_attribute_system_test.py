@@ -45,16 +45,17 @@ def check_attributes(definitions):
     assert(f"{pfx}4" not in meta.tables)
     for n in [0, 1, 2, 3]:
       assert(f"{pfx}{n}" in meta.tables)
+    print(set(meta.tables[f"{pfx}0"].c.keys()))
     assert(set(meta.tables[f"{pfx}0"].c.keys()) ==
-           {"accession", "g1a_v", "g1a_c", "g1b_v", "g1b_c",
+           {"entity_id", "g1a_v", "g1a_c", "g1b_v", "g1b_c",
                          "g1c_v", "g1c_c", "g1_g"})
     assert(set(meta.tables[f"{pfx}1"].c.keys()) ==
-           {"accession", "g1d_v", "g1d_c", "g1_g",
+           {"entity_id", "g1d_v", "g1d_c", "g1_g",
                          "g2a_v", "g2a_c", "g2b_v", "g2b_c", "g2_g"})
     assert(set(meta.tables[f"{pfx}2"].c.keys()) ==
-           {"accession", "g3a_v0", "g3a_v1", "g3a_c", "g3_g"})
+           {"entity_id", "g3a_v0", "g3a_v1", "g3a_c", "g3_g"})
     assert(set(meta.tables[f"{pfx}3"].c.keys()) ==
-           {"accession", "g3b_v0", "g3b_v1", "g3b_v2", "g3b_v3",
+           {"entity_id", "g3b_v0", "g3b_v1", "g3b_v2", "g3b_v3",
                          "g3b_c", "g3_g"})
 
 def check_no_attributes(definitions):
@@ -73,7 +74,7 @@ def check_no_attributes(definitions):
     assert(f"{pfx}4" not in meta.tables)
     for n in [0, 1, 2, 3]:
       assert(f"{pfx}{n}" in meta.tables)
-      assert(set(meta.tables[f"{pfx}{n}"].c.keys()) == {"accession"})
+      assert(set(meta.tables[f"{pfx}{n}"].c.keys()) == {"entity_id"})
 
 def run_load_results(n):
   args = db.args_from_env(ENVVAR)
@@ -104,7 +105,7 @@ def get_attribute_value_rows():
    for n in tnums:
      t = meta.tables[f"pr_attribute_value_t{n}"]
      rows = connection.execute(select(t)).all()
-     r.append({row.accession: row for row in rows})
+     r.append({row.entity_id: row for row in rows})
    return r
 
 def check_g1_t0(row, run):
