@@ -39,6 +39,18 @@ These are organized as follows:
   and store the data in ProstDB, perform comparison tasks based on the ProstPy
   library and more.
 
+A number of features has been created in separate packages
+(installable using pip):
+
+- multiplug: a plugin system which allows to write plugins for Python programs
+             in Nim, Python, Rust and Bash; this is the base of ProstPlugins
+- snacli: a system for creating scripts which can be run both from the command
+          line (interactively) and from inside a Snakemake file;
+          this is the base of the ProstPy interactive scripts
+- attrtables: a dynamic system for storing entity attributes spread across
+              multiple tables, including computation tracing metadata;
+              this is the base of the ProstDB attributes storage
+
 ## Code organization
 
 - ProstPy executable scripts are included in ``scripts``
