@@ -91,10 +91,10 @@ rule match_bacdive_ids_with_rsseq_accessions:
 
 rule match_bacdive_accessions:
   input:
-    expand(path.bacdive/"bdid_rsasm.by_gbasm.{d}.tsv", d=config["domains"]),
-    expand(path.bacdive/"bdid_rsasm.by_rsasm.{d}.tsv", d=config["domains"]),
-    expand(path.bacdive/"bdid_rsasm.by_gbseq.{d}.tsv", d=config["domains"]),
-    expand(path.bacdive/"bdid_rsasm.by_rsseq.{d}.tsv", d=config["domains"])
+    expand(path.bacdive/"bdid_rsasm.by_gbasm.{d}.tsv", d=domains),
+    expand(path.bacdive/"bdid_rsasm.by_rsasm.{d}.tsv", d=domains),
+    expand(path.bacdive/"bdid_rsasm.by_gbseq.{d}.tsv", d=domains),
+    expand(path.bacdive/"bdid_rsasm.by_rsseq.{d}.tsv", d=domains)
   output:
     accessions=path.bacdive/"bdid_rsasm.tsv"
   shell:

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
-include: "common.snake"
+include: "../snakes/common.snake"
+
+check_config_var(config, "dbrootpass")
 
 #
 # The replace_dead_socket is used to check that the socket (if it exists) allows

@@ -1,8 +1,8 @@
 # ProstSnakes
 
 ProstSnakes is a collection of Snakemake files (based on the ``snakemake`` tool),
-which define automated tasks for creating, interacting with, updating the Prost
-database, dowload external data, compute attributes and store the computation
+which define automated tasks for interacting with the Prost
+database, download external data, compute attributes and store the computation
 results into the database. These operations are done by automating and
 organizing calls to the ProstPy scripts (see ``scripts`` directory of the project).
 
@@ -14,7 +14,8 @@ Then, only attributes of the new downloaded genomes are computed.
 
 ## Configuration file and data location
 
-The configuration file (``config.yaml``) defines the base directory where data
+The configuration file (``config.yaml`` in the main directory of the package)
+defines the base directory where data
 is stored (database, downloaded files, etc).  The subdirectories under this
 point to be used for different purposes are defined in the common module
 (``common.snake``), which is loaded by all other modules.
@@ -29,7 +30,6 @@ and the task (if any) are mentioned in the table below:
 
 | Module and task         | Purpose                                            |
 |-------------------------|----------------------------------------------------|
-| ``prostdb``             | setup the database in a new system, or start the server if already setup |
 | ``prostdb connect``     | interactively connect to the database      |
 | ``download_ncbi_taxonomy`` | download the NCBI taxonomy database, if changed      |
 | ``prostdb_ncbi_taxonomy``  | load downloaded NCBI taxonomy data into the database |

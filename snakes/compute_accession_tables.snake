@@ -23,10 +23,10 @@ include: "common.snake"
 
 rule all:
   input:
-    expand(str(path.accessions/"gbasm_rsasm_gbseq.{domain}.done"), domain=config["domains"]),
-    expand(str(path.accessions/"rsasm.{domain}.tsv"), domain=config["domains"]),
-    expand(str(path.accessions/"gbasm_rsasm.{domain}.tsv"), domain=config["domains"]),
-    expand(str(path.accessions/"rsasm_rsseq.{domain}.done"), domain=config["domains"])
+    expand(str(path.accessions/"gbasm_rsasm_gbseq.{domain}.done"), domain=domains),
+    expand(str(path.accessions/"rsasm.{domain}.tsv"), domain=domains),
+    expand(str(path.accessions/"gbasm_rsasm.{domain}.tsv"), domain=domains),
+    expand(str(path.accessions/"rsasm_rsseq.{domain}.done"), domain=domains)
 
 rule table_rs_asm_accessions:
   input:

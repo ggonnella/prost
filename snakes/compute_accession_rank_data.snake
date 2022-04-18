@@ -20,7 +20,7 @@ include: "common.snake"
 rule all:
   input:
     expand(str(path.accranks/"rsasm_ranks.{domain}.done"),
-        domain=config["domains"])
+        domain=domains)
 
 rule accession_rank_list:
   input:

@@ -1,15 +1,9 @@
 This document illustrates the first step in order to use Prost
-in a new system.
-
-These consists in the database creation, download of the data
+in a new system, i.e. the data download from external sources
 and loading of the data into the database.
 
-# Database creation
-
-The database is created and initalized using the following command:
-```
-snakemake -j -s prostdb.snake
-```
+It assumes that a working relational database management system
+has been installed and setup correctly (see ``installation.md``).
 
 # Data download
 

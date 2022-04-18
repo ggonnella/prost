@@ -36,7 +36,7 @@ rule all:
 checkpoint update_all_summaries:
   input:
     expand(str(path.asmsummary/"update_summaries.{db}.{domain}.done"),
-      db=DBs, domain=config["domains"])
+      db=DBs, domain=domains)
   output:
     touch(path.asmsummary/"update_summaries.done")
 
@@ -90,7 +90,7 @@ ext_for_filetype = {
 rule update_all_sequences:
   input:
     expand(str(path.asmsummary/"update_sequences.refseq.{domain}.{filetype}.done"),
-           domain=config["domains"], filetype=ext_for_filetype.keys())
+           domain=domains, filetype=ext_for_filetype.keys())
   output:
     temp(touch(path.asmsummary/"update_sequences.done"))
 
