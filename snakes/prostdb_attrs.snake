@@ -50,19 +50,11 @@ rule all:
 
 rule create_all_tables:
   input:
-    expand(str(path.tables/"done.create_tables.{dbmodule}"),
-        dbmodule=["computation_report", "attribute", "plugin_description"])
+    dbsocket=ancient(path.socket),
   output:
     done=touch(path.tables/"done.create_tables.attrs")
-
-rule create_tables:
-  input:
-    dbsocket=ancient(path.socket),
-    schema=srcdir("../scripts/dbschema/{dbmodule}.py")
-  output:
-    touch(path.tables/"done.create_tables.{dbmodule}")
   script:
-    "../scripts/db_create_tables.py"
+    "prenacs-setup-database"
 
 rule create_attributes:
   input:
@@ -75,7 +67,7 @@ rule create_attributes:
   output:
     done=touch(path.tables/"done.create_attributes")
   script:
-    "../scripts/db_attributes.py"
+    "prenacs-manage-attributes"
 
 def plugin_module_path(w):
   pfx = os.path.join(workflow.basedir, f"../plugins/{w.plugin}")
@@ -113,7 +105,7 @@ checkpoint compute_on_local_refseq_files:
     verbose=True,
     serial=False
   script:
-    "../scripts/batch_compute.py"
+    "prenacs-batch-compute"
 
 rule load_results:
   input:
@@ -125,7 +117,7 @@ rule load_results:
   output:
     touch(path.attrs/"done.load.{plugin}.{datasrc}.{domain}")
   script:
-    "../scripts/db_load_results.py"
+    "prenacs-load-results"
 
 rule process_loaded:
   input:

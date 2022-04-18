@@ -12,3 +12,4 @@ docopt
 multiplug
 snacli
 attrtables
+prenacs

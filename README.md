@@ -50,6 +50,11 @@ A number of features has been created in separate packages
 - attrtables: a dynamic system for storing entity attributes spread across
               multiple tables, including computation tracing metadata;
               this is the base of the ProstDB attributes storage
+- prenacs: system for batch computing of entity attributes
+           (using plugins based on ``multiplug``) and results storage
+           (based on ``attrtables``) with provenance tracking;
+           the library is used for the computation of genome assembly
+           attributes and to store the results in the ProstDB
 
 ## Code organization
 
