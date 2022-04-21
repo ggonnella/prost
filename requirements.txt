@@ -9,7 +9,7 @@ mariadb
 gffutils
 sh
 docopt
-multiplug
-snacli
-attrtables
-prenacs
+multiplug==1.1
+snacli==1.1
+attrtables==1.1.1
+prenacs==1.0.1
