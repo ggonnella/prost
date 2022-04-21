@@ -12,7 +12,8 @@ def find_config_file():
   if "XDG_CONFIG_HOME" in os.environ:
     config_filename = find_config_file_in_dir(os.environ["XDG_CONFIG_HOME"])
   if config_filename is None:
-    config_filename = find_config_file_in_dir(os.environ["HOME"])
+    config_filename = find_config_file_in_dir(os.path.join(os.environ["HOME"],\
+                                              ".config"))
   if config_filename is None:
     config_filename = find_config_file_in_dir(srcdir(".."))
   if config_filename is None:
