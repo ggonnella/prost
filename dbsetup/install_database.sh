@@ -96,7 +96,7 @@ function start_server {
 }
 
 check_command mysql_install_db "Please install MariaDB first."
-run_command "prepare the data directory" \
+run_command "prepare the data directory '$DATADIR'" \
       "mysql_install_db --datadir=$DATADIR --user=$USER"
 
 start_server
