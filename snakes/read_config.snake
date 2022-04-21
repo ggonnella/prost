@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+import pathlib
+import sys
+import os
+
+def find_config_file_in_dir(config_dir):
+  config_file = os.path.join(config_dir, "prost.config.yaml")
+  return config_file if pathlib.Path(config_file).exists() else None
+
+def find_config_file():
+  config_filename = None
+  if "XDG_CONFIG_HOME" in os.environ:
+    config_filename = find_config_file_in_dir(os.environ["XDG_CONFIG_HOME"])
+  if config_filename is None:
+    config_filename = find_config_file_in_dir(os.environ["HOME"])
+  if config_filename is None:
+    config_filename = find_config_file_in_dir(srcdir(".."))
+  if config_filename is None:
+    sys.stderr.write(f"Error: configuration file not found\n")
+  return config_filename
+
+configfile: find_config_file()
+
+def check_config_var(config, varname, helpmsg=None):
+  if varname not in config or config[varname] is None:
+    sys.stderr.write(f"Errot: '{varname}' not set in config.yaml\n\n")
+    if helpmsg is not None:
+      sys.stderr.write(f"\nHelp:\n{helpmsg}\n\n")
+    exit(1)
+
+def check_or_set_config_var(config, varname, default):
+  if varname not in config or config[varname] is None:
+    config[varname] = default
+
+help_dataroot="""
+the dataroot key in the configuration shall be set to the path of the (writable)
+directory where the database and other information shall be stored
+"""
+
+help_dbconnection="""
+the database connection data, i.e. dbname, dbuser, dbpass, dbsocket
+(and optionally dbhost and dbport) keys must be set in the configuration file.
+"""
+
+check_config_var(config, "dataroot", help_dataroot)
+for k, v in config.items():
+  if k != 'dataroot' and isinstance(v, str):
+    config[k] = v.replace("{dataroot}", config["dataroot"])
+
+check_config_var(config, "dbuser", help_dbconnection)
+check_config_var(config, "dbpass", help_dbconnection)
+check_config_var(config, "dbname", help_dbconnection)
+check_config_var(config, "dbsocket", help_dbconnection)
+check_or_set_config_var(config, "dbhost", "localhost")
+check_or_set_config_var(config, "dbport", 3306)

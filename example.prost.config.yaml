@@ -1,0 +1,24 @@
+# see the Prost setup guide for details
+
+# set the following to the main data directory for Prost:
+dataroot:
+
+# database connection data:
+dbname: prostdb
+dbuser: prostuser
+dbpass: prostpass
+dbhost: localhost
+dbport: 3306
+dbsocket: "{dataroot}/prost.db.sock"
+
+# the following are used only if the database setup and server management
+# is done using the dbsetup directory
+dbpath: "{dataroot}/database"
+dbrootpass: root
+
+# the following is required only for the test suite
+testdbname: prosttestdb
+
+# the following are required only for the Bacdive data (experimental):
+bacdive_user:
+bacdive_pass:

@@ -1,175 +1,109 @@
 #!/usr/bin/env python3
 
-include: "../snakes/common.snake"
+include: srcdir("../snakes/read_config.snake")
 
-check_config_var(config, "dbrootpass")
+import getpass
+sysuser = getpass.getuser()
 
-#
-# The replace_dead_socket is used to check that the socket (if it exists) allows
-# a connection. If this is not the case (e.g. after a system restart without
-# stopping the server), then the dead socket file is removed and the MySQL
-# server is restarted.
-#
-# Since it checks if the socket file exists, and if the root password has
-# already been set, nothing happens if the database had not been created and
-# configured correctly.
-#
-# All rules which require the socket as input should not care about its
-# timestamp, i.e. use input: socket=ancient(path.socket).
-#
-replace_dead_socket=\
-      f"if test -S {path.socket}; then "+\
-      f"  if test -e {path.db}/done.set_root_password; then"+\
-      f"    if ! mysql -u {config['sysuser']} --password={config['dbrootpass']} "+\
-      f"               -S {path.socket} -e';'; then "+\
-      f"      rm {path.socket}; "+\
-      f"      echo 'restarting DB server...';"+\
-      f"      mysqld_safe --datadir={path.dbdata}"+\
-      f"           --log-error={path.socket}.log.err"+\
-      f"           --pid-file={path.socket}.pid"+\
-      f"           --socket={path.socket}"+\
-      f"           --user={config['sysuser']} &"+\
-       "      sleep 1;"+\
-       "    fi;"+\
-       "  fi;"+\
-       "fi"
+from pathlib import Path
 
-onstart:
-  shell(replace_dead_socket)
+help_dbpath = "The 'dbpath' configuration variable must contain the path to "+\
+             "the database data directory."
+help_dbrootpass = "The 'dbrootpass' configuration variable must contain the "+\
+             "password of the database administrator account "+\
+             f"'{sysuser}'."
+
+check_config_var(config, "dbpath", help_dbpath)
+check_config_var(config, "dbrootpass", help_dbrootpass)
+
+help_rules = """\
+Select one of the following rules by passing the rule name as an argument
+to the snakemake command line.
+
+  initialize: initialize the database data directory and setup the password
+              for the database administrator account ('{sysuser}')
+  create:     create the database and a database user account
+  start:      start the database server
+  stop:       stop the database server
+
+Please refer to the documentation for further information.
+""".format(sysuser=sysuser)
 
 rule all:
-  input:
-    socket=path.socket
+  run:
+    print(help_rules)
 
 ## Database initialization/creation
 
 rule initialize:
   output:
-    datadir=directory(path.dbdata)
+    datadir=directory(config["dbpath"])
   shell:
     """
-    case "$(uname -s)" in
-      Darwin*)
-        echo "[PROSTDB] Using MacOS configuration..."
-        echo "[PROSTDB] assuming mariadb is installed using brew"
-        mysql_install_db --basedir="$(brew --prefix mariadb)" --user={config[sysuser]} --datadir={output.datadir}
-        ;;
-      *)
-        echo "[PROSTDB] Using Linux/Unix configuration..."
-        mysql_install_db --user={config[sysuser]} --datadir={output.datadir}
-        ;;
-      esac
+    ./install_database.sh {output.datadir} {config[dbrootpass]}
     """
 
-rule set_root_password:
+rule create:
   input:
-    socket=ancient(path.socket),
     datadir=ancient(rules.initialize.output.datadir)
   output:
-    done=touch(path.db/"done.set_root_password")
+    dbdir=directory(Path(config["dbpath"])/config["dbname"])
   shell:
     """
-    case "$(uname -s)" in
-      Darwin*)
-        echo -n "[PROSTDB] On MacOS, setting the DB root password currently "
-        echo "requires root access to the system"
-        echo "[PROSTDB] Enter the root password at the following prompt"
-        COMMANDS="USE mysql; "
-        COMMANDS+="ALTER USER 'root'@'localhost' "
-        COMMANDS+="  IDENTIFIED BY '{config[dbrootpass]}';"
-        COMMANDS+="FLUSH PRIVILEGES; "
-        echo ${{COMMANDS}}
-        echo "${{COMMANDS}}" | sudo mysql -u root \
-                           --socket={input.socket}
-        ;;
-      *)
-        echo "[PROSTDB] Using mysqladmin to change the DB root password"
-        mysqladmin -u {config[sysuser]} \
-            --socket={input.socket} password {config[dbrootpass]}
-        ;;
-      esac
+    ./create_database.sh {input.datadir} {config[dbrootpass]} \
+                         {config[dbname]} {config[dbuser]} \
+                         {config[dbpass]}
     """
 
-rule create_db:
+rule create_test:
   input:
-    ancient(rules.set_root_password.output.done),
-    socket=ancient(path.socket)
+    datadir=ancient(rules.initialize.output.datadir)
   output:
-    done=touch(path.db/"done.create_db")
+    dbdir=directory(Path(config["dbpath"])/config["testdbname"])
   shell:
     """
-    COMMANDS="CREATE DATABASE \`{config[dbname]}\`; "
-    COMMANDS+="CREATE DATABASE \`{config[testdbname]}\`; "
-    echo ${{COMMANDS}}
-    echo "${{COMMANDS}}" | mysql -u {config[sysuser]} \
-                           --password={config[dbrootpass]} \
-                           --socket={input.socket}
-    """
-
-rule create_dbuser:
-  input:
-    ancient(rules.create_db.output.done),
-    socket=ancient(path.socket)
-  output:
-    done=touch(path.db/"done.create_db_user")
-  shell:
-    """
-    COMMANDS="CREATE USER '{config[dbuser]}' IDENTIFIED BY '{config[dbpass]}'; "
-    COMMANDS+="GRANT USAGE ON *.* TO '{config[dbuser]}'@localhost "
-    COMMANDS+="  IDENTIFIED BY '{config[dbpass]}'; "
-    COMMANDS+="GRANT ALL PRIVILEGES ON \`{config[dbname]}\`.* TO"
-    COMMANDS+="  '{config[dbuser]}'@localhost; "
-    COMMANDS+="GRANT ALL PRIVILEGES ON \`{config[testdbname]}\`.* TO"
-    COMMANDS+="  '{config[dbuser]}'@localhost; "
-    COMMANDS+="FLUSH PRIVILEGES;"
-    echo ${{COMMANDS}}
-    echo "${{COMMANDS}}" | mysql -u {config[sysuser]} \
-                           --password={config[dbrootpass]} \
-                           --socket={input.socket}
+    ./create_database.sh {input.datadir} {config[dbrootpass]} \
+                         {config[testdbname]} {config[dbuser]} \
+                         {config[dbpass]}
     """
 
 ## Database administration tasks
 
-rule start_server:
+rule start:
   input:
-    datadir=path.dbdata
+    datadir=ancient(rules.initialize.output.datadir)
   output:
-    socket=path.socket
+    socket=config["dbsocket"]
   shell:
     """
-    mysqld_safe --datadir={input.datadir} \
-                --log-error={path.socket}.log.err\
-                --pid-file={path.socket}.pid\
-                --socket={output.socket} \
-                --user={config[sysuser]} &
-    sleep 3
+    ./start_database_server.sh {input.datadir} {config[dbhost]} \
+                               {config[dbport]} {output.socket} \
+                               {config[dbname]} {config[dbuser]} \
+                               {config[dbpass]}
     """
 
-rule stop_server:
+rule stop:
   input:
-    ancient(rules.set_root_password.output.done),
-    socket=ancient(path.socket)
+    socket=ancient(rules.start.output.socket)
   shell:
     """
-    mysqladmin -u {config[sysuser]} --password={config[dbrootpass]} \
-                       --socket={input.socket} shutdown
+    mysqladmin -u {sysuser} --password={config[dbrootpass]} \
+                --socket={input.socket} shutdown
     """
 
-rule show_processes:
+rule ps:
   input:
-    ancient(rules.set_root_password.output.done),
-    socket=ancient(rules.start_server.output.socket)
+    socket=ancient(rules.start.output.socket)
   shell:
     """
-    mysqladmin processlist -u {config[sysuser]} \
+    mysqladmin processlist -u {sysuser} \
         --password={config[dbrootpass]} \
         --socket={input.socket}
     """
 
 rule connect:
   input:
-    ancient(rules.create_dbuser.output.done),
-    socket=ancient(rules.start_server.output.socket)
+    socket=ancient(rules.start.output.socket)
   shell:
     """
     mysql --socket={input.socket} \
@@ -180,8 +114,7 @@ rule connect:
 
 rule tconnect:
   input:
-    ancient(rules.create_dbuser.output.done),
-    socket=ancient(rules.start_server.output.socket)
+    socket=ancient(rules.start.output.socket)
   shell:
     """
     mysql --socket={input.socket} \
@@ -190,25 +123,11 @@ rule tconnect:
           --password={config[dbpass]}
     """
 
-rule root_connect:
+rule rconnect:
   input:
-    ancient(rules.set_root_password.output.done),
-    socket=ancient(rules.start_server.output.socket)
+    socket=ancient(rules.start.output.socket)
   shell:
     """
     mysql --socket={input.socket} --database={config[dbname]} \
-          -u {config[sysuser]} --password={config[dbrootpass]}
+          -u {sysuser} --password={config[dbrootpass]}
     """
-
-#
-# Used to create a fake socket to test the replace_dead_socket
-# functionality (see onstart hook). Use after a stop_server,
-# otherwise it will fail. If everything works as intended, the
-# fake socket will be removed and replaced the next time the
-# workflow is executed.
-#
-rule fake_socket:
-  run:
-    import socket
-    sock = socket.socket(socket.AF_UNIX)
-    sock.bind(str(path.socket))

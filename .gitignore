@@ -6,3 +6,4 @@ tmp/
 prv.*
 *.fna.gz
 __pycache__
+prost.config.yaml
