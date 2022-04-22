@@ -36,27 +36,33 @@ rule all:
 ## Database initialization/creation
 
 rule initialize:
+  params:
+    srcdir=srcdir(".")
   shell:
     """
-    ./install_database.sh {config[dbpath]} {config[dbrootpass]}
+    {params.srcdir}/install_database.sh {config[dbpath]} {config[dbrootpass]}
     """
 
 rule create:
+  params:
+    srcdir=srcdir(".")
   output:
     dbdir=directory(Path(config["dbpath"])/config["dbname"])
   shell:
     """
-    ./create_database.sh {config[dbpath]} {config[dbrootpass]} \
+    {params.srcdir}/create_database.sh {config[dbpath]} {config[dbrootpass]} \
                          {config[dbname]} {config[dbuser]} \
                          {config[dbpass]}
     """
 
 rule create_test:
+  params:
+    srcdir=srcdir(".")
   output:
     dbdir=directory(Path(config["dbpath"])/config["testdbname"])
   shell:
     """
-    ./create_database.sh {config[dbpath]} {config[dbrootpass]} \
+    {params.srcdir}/create_database.sh {config[dbpath]} {config[dbrootpass]} \
                          {config[testdbname]} {config[dbuser]} \
                          {config[dbpass]}
     """
@@ -64,11 +70,13 @@ rule create_test:
 ## Database administration tasks
 
 rule start:
+  params:
+    srcdir=srcdir(".")
   output:
     socket=config["dbsocket"]
   shell:
     """
-    ./start_database_server.sh {config[dbpath]} {config[dbhost]} \
+    {params.srcdir}/start_database_server.sh {config[dbpath]} {config[dbhost]} \
                                {config[dbport]} {output.socket} \
                                {config[dbname]} {config[dbuser]} \
                                {config[dbpass]}
