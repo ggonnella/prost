@@ -18,11 +18,25 @@ help_rules = """\
 Select one of the following rules by passing the rule name as an argument
 to the snakemake command line.
 
-  initialize: initialize the database data directory and setup the password
-              for the database administrator account ('{sysuser}')
-  create:     create the database and a database user account
-  start:      start the database server
-  stop:       stop the database server
+  initialize:  initialize the database data directory and setup the password
+               for the database administrator account ('{sysuser}')
+  create:      create the database and a database user account
+
+  start:       start the database server
+  stop:        stop the database server
+  ps:          show running server processes
+  connect:     start interactive database shell
+
+Developer rules:
+
+  create_test: create the test database
+  tconnect:    start interactive database shell using test database
+  rconnect:    start interactive database shell using administrator account
+
+  fake_socket:  create a fake socket file for the replace_test
+                (run 'stop' rule first!)
+  replace_test: test the replacement of unusable sockets
+                (run 'fake_socket' rule first!)
 
 Please refer to the documentation for further information.
 """.format(sysuser=sysuser)
