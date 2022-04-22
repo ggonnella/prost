@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 include: srcdir("../snakes/read_config.snake")
 
 import getpass
@@ -28,6 +26,8 @@ to the snakemake command line.
 
 Please refer to the documentation for further information.
 """.format(sysuser=sysuser)
+
+include: srcdir("replace_dead_socket.snake")
 
 rule all:
   run:
@@ -83,12 +83,15 @@ rule start:
     """
 
 rule stop:
-  input:
-    socket=ancient(rules.start.output.socket)
   shell:
     """
-    mysqladmin -u {sysuser} --password={config[dbrootpass]} \
-                --socket={input.socket} shutdown
+    if [ -S {config[dbsocket]} ]; then
+      mysqladmin -u {sysuser} --password={config[dbrootpass]} \
+                  --socket={config[dbsocket]} shutdown
+      echo 'Server was stopped.'
+    else
+      echo 'Server was not running (no socket file).'
+    fi
     """
 
 rule ps:

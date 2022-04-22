@@ -1,0 +1,77 @@
+include: srcdir("../snakes/read_config.snake")
+
+import getpass
+sysuser = getpass.getuser()
+
+#
+# If the system is rebooted without stopping the server first,
+# the socket file is unuseable.
+#
+# Thus check that, if a socket exists (i.e. the database has been
+# supposedly initialized and the server started) then the socket is usable.
+# Otherwise delete the socket file and restart the server.
+#
+replace_dead_socket=\
+      f"if test -S {config['dbsocket']}; then "+\
+      f"  if ! mysql -u {sysuser} --password={config['dbrootpass']} "+\
+      f"             -S {config['dbsocket']} -e';'; then "+\
+      f"    rm {config['dbsocket']}; "+\
+      f"    echo 'restarting DB server...';"+\
+      f"    {srcdir('.')}/start_database_server.sh {config['dbpath']}"+\
+      f"                  {config['dbhost']} {config['dbport']} "+\
+      f"                  {config['dbsocket']} {config['dbname']} "+\
+      f"                  {config['dbuser']} {config['dbpass']}; "+\
+       "    sleep 1;"+\
+       "  else"+\
+      f"    echo connection successful using socket: {config['dbsocket']};"+\
+       "  fi;"+\
+       "fi"
+
+onstart:
+  shell(replace_dead_socket)
+
+help_msg = """\
+To test the replace dead socket feature:
+(1) make sure that the database is not running
+    (or execute: snakemake -j -s prostdb.snake stop)
+(2) create a fake socket:
+    snakemake -j -s replace_dead_socket.snake fake_socket
+(3) this should display a message stating that
+    the DB server is restarted, then output a success message:
+    snakemake -j -s replace_dead_socket.snake replace_test
+"""
+
+rule replace_help:
+  run:
+    print(help_msg)
+
+rule replace_test:
+  shell:
+    """
+    if [ ! -S {config[dbsocket]} ]; then
+      echo "TEST FAILED: the socket file was not recreated"
+    else
+      if ! mysql -u {sysuser} --password={config[dbrootpass]} \
+        -S {config[dbsocket]} -e';'; then
+        echo "TEST FAILED: the socket file is still dead"
+      else
+        echo "The connection was successfull!"
+      fi
+    fi
+    """
+
+#
+# Used to create a fake socket to test the replace_dead_socket
+# functionality (see onstart hook).
+#
+# If the server is running, before doing the test, it must be stopped.
+#
+# If everything works as intended, the
+# fake socket will be removed and replaced the next time the
+# workflow is executed.
+#
+rule fake_socket:
+  run:
+    import socket
+    sock = socket.socket(socket.AF_UNIX)
+    sock.bind(str(config['dbsocket']))

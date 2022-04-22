@@ -67,6 +67,9 @@ function start_server {
 }
 
 start_server
+echo ""
+echo "Server was started."
+echo ""
 echo "Connection data for the configuration file:"
 echo ""
 echo "dbname: $DBNAME"
