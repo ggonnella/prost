@@ -12,4 +12,4 @@ docopt
 multiplug==1.1
 snacli==1.1
 attrtables==1.1.1
-prenacs==1.0.1
+prenacs==1.0.2
