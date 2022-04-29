@@ -21,8 +21,8 @@ path.genomeseq  = path.genomes / "refseq_genomic_fna"
 path.genomeann  = path.genomes / "refseq_genomic_gff"
 path.attrs      = r / "assembly_attributes"
 path.reports    = r / "reports"
+path.flags      = r / "flags"
 
-# TODO: where is the following needed?
-path.db         = config["dbpath"]
-path.dbdata     = path.db / "datadir"
-path.tables     = path.dbdata / config["dbname"]
+# create some of the necessary directories, if needed
+path.reports.mkdir(parents=True, exist_ok=True)
+path.flags.mkdir(parents=True, exist_ok=True)

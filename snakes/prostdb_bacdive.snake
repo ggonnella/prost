@@ -6,7 +6,7 @@ the information from Bacdive.
 include: "common.snake"
 
 rule all:
-  input: path.tables/"done.insert.bacdive"
+  input: path.flags/"done.insert.bacdive"
 
 rule tabulize_json_data:
   input: tsv=path.bacdive/"bacdive.details"
@@ -21,7 +21,7 @@ rule generate_schema:
 
 rule create_tables:
   input: dbsocket=config['dbsocket'], schema=rules.generate_schema.output[0]
-  output: touch(path.tables/"done.create_tables.bacdive")
+  output: touch(path.flags/"done.create_tables.bacdive")
   script: "../scripts/db_create_tables.py"
 
 rule insert:
@@ -30,5 +30,5 @@ rule insert:
     dbsocket=ancient(config['dbsocket']),
     data=rules.tabulize_json_data.output[0]
   output:
-    touch(path.tables/"done.insert.bacdive")
+    touch(path.flags/"done.insert.bacdive")
   script: "../scripts/bacdive_db_bulk_insert.py"

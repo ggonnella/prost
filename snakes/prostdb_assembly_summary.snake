@@ -6,21 +6,21 @@ Compute assembly attributes and store them in the database.
 include: "common.snake"
 
 rule all:
-  input: path.tables/"done.insert.ncbi_assembly_summary"
+  input: path.flags/"done.insert.ncbi_assembly_summary"
 
 rule insert_all:
   input:
-    expand(str(path.tables/"done.insert.ncbi_assembly_summary.{db}.{domain}"),
+    expand(str(path.flags/"done.insert.ncbi_assembly_summary.{db}.{domain}"),
         db=["genbank", "refseq"], domain=domains)
   output:
-    touch(path.tables/"done.insert.ncbi_assembly_summary")
+    touch(path.flags/"done.insert.ncbi_assembly_summary")
 
 rule create_tables:
   input:
     dbsocket=ancient(config['dbsocket']),
     schema=srcdir("../scripts/dbschema/ncbi_assembly_summary.py")
   output:
-    touch(path.tables/"done.create_tables.ncbi_assembly_summary")
+    touch(path.flags/"done.create_tables.ncbi_assembly_summary")
   script:
     "../scripts/db_create_tables.py"
 
@@ -31,7 +31,7 @@ rule insert:
     ts=path.asmsummary/"assembly_summary_{db}_{domain}.update_timestamp",
     datasrc=ancient(path.asmsummary/"assembly_summary_{db}_{domain}.txt")
   output:
-    touch(path.tables/"done.insert.ncbi_assembly_summary.{db}.{domain}")
+    touch(path.flags/"done.insert.ncbi_assembly_summary.{db}.{domain}")
   params:
     update=True
   script:

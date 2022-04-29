@@ -52,7 +52,7 @@ rule create_all_tables:
   input:
     dbsocket=ancient(config['dbsocket']),
   output:
-    done=touch(path.tables/"done.create_tables.attrs")
+    done=touch(path.flags/"done.create_tables.attrs")
   script:
     "prenacs-setup-database"
 
@@ -65,7 +65,7 @@ rule create_attributes:
     update=True,
     drop=True
   output:
-    done=touch(path.tables/"done.create_attributes")
+    done=touch(path.flags/"done.create_attributes")
   script:
     "prenacs-manage-attributes"
 

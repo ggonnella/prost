@@ -4,15 +4,15 @@ include: "common.snake"
 
 rule all:
   input:
-    path.tables/"done.load.ncbi_taxonomy"
+    path.flags/"done.load.ncbi_taxonomy"
 
 rule load_all:
   input:
-    expand(str(path.tables/"done.load.ncbi_taxonomy.{table}"),
+    expand(str(path.flags/"done.load.ncbi_taxonomy.{table}"),
         table=["names", "nodes", "gencode", "division",
                "merged", "delnodes", "citations"]),
   output:
-    done=touch(path.tables/"done.load.ncbi_taxonomy")
+    done=touch(path.flags/"done.load.ncbi_taxonomy")
 
 rule create_table:
   input:
@@ -23,14 +23,14 @@ rule create_table:
     table="nt_{table}",
     drop=True
   output:
-    done=touch(path.tables/"done.create_tables.ncbi_taxonomy.{table}")
+    done=touch(path.flags/"done.create_tables.ncbi_taxonomy.{table}")
   script: "../scripts/db_create_tables.py"
 
 rule load_data:
   input:
     tsv=path.tax/"{table}.dmp",
     dbsocket=ancient(config['dbsocket']),
-    done_create_tables=path.tables/"done.create_tables.ncbi_taxonomy.{table}"
+    done_create_tables=path.flags/"done.create_tables.ncbi_taxonomy.{table}"
   params:
     table="nt_{table}",
     dbschema=srcdir("../scripts/dbschema/ncbi_taxonomy_db.py"),
@@ -38,7 +38,7 @@ rule load_data:
     ignore=True,
     dropkeys=True
   output:
-    done=temp(touch(path.tables/"done.load.ncbi_taxonomy.{table}"))
+    done=temp(touch(path.flags/"done.load.ncbi_taxonomy.{table}"))
   script: "../scripts/db_load_data.py"
 
 rule get_subtree:
