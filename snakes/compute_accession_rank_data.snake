@@ -25,7 +25,7 @@ rule all:
 rule accession_rank_list:
   input:
     summary=path.asmsummary/"complete_genomes_summary_refseq_{domain}.txt",
-    dbsocket=ancient(path.socket)
+    dbsocket=ancient(config['dbsocket'])
   params:
     prev=str(path.accranks/"rsasm_ranks.{domain}.tsv")
   output: touch(path.accranks/"rsasm_ranks.{domain}.done")

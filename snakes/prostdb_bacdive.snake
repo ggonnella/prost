@@ -20,14 +20,14 @@ rule generate_schema:
   script: "../scripts/tabdata_to_dbschema.py"
 
 rule create_tables:
-  input: dbsocket=path.socket, schema=rules.generate_schema.output[0]
+  input: dbsocket=config['dbsocket'], schema=rules.generate_schema.output[0]
   output: touch(path.tables/"done.create_tables.bacdive")
   script: "../scripts/db_create_tables.py"
 
 rule insert:
   input:
     rules.create_tables.output,
-    dbsocket=ancient(path.socket),
+    dbsocket=ancient(config['dbsocket']),
     data=rules.tabulize_json_data.output[0]
   output:
     touch(path.tables/"done.insert.bacdive")

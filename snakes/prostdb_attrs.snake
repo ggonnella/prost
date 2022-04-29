@@ -50,7 +50,7 @@ rule all:
 
 rule create_all_tables:
   input:
-    dbsocket=ancient(path.socket),
+    dbsocket=ancient(config['dbsocket']),
   output:
     done=touch(path.tables/"done.create_tables.attrs")
   script:
@@ -58,7 +58,7 @@ rule create_all_tables:
 
 rule create_attributes:
   input:
-    dbsocket=ancient(path.socket),
+    dbsocket=ancient(config['dbsocket']),
     definitions=srcdir("../plugins/attributes.yaml"),
     done=rules.create_all_tables.output.done
   params:
@@ -112,7 +112,7 @@ rule load_results:
     results=path.attrs/"{plugin}.{datasrc}.{domain}.new_data.tsv",
     report=path.attrs/"{plugin}.{datasrc}.{domain}.report.yaml",
     plugin=plugin_module_path,
-    dbsocket=ancient(path.socket),
+    dbsocket=ancient(config['dbsocket']),
     done=rules.create_attributes.output.done
   output:
     touch(path.attrs/"done.load.{plugin}.{datasrc}.{domain}")

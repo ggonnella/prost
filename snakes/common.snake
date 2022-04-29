@@ -22,9 +22,6 @@ path.genomeann  = path.genomes / "refseq_genomic_gff"
 path.attrs      = r / "assembly_attributes"
 path.reports    = r / "reports"
 
-# TODO: take this from the config instead of path
-path.socket     = config["dbsocket"]
-
 # TODO: where is the following needed?
 path.db         = config["dbpath"]
 path.dbdata     = path.db / "datadir"

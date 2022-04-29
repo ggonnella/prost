@@ -17,7 +17,7 @@ rule insert_all:
 
 rule create_tables:
   input:
-    dbsocket=ancient(path.socket),
+    dbsocket=ancient(config['dbsocket']),
     schema=srcdir("../scripts/dbschema/ncbi_assembly_summary.py")
   output:
     touch(path.tables/"done.create_tables.ncbi_assembly_summary")
@@ -27,7 +27,7 @@ rule create_tables:
 rule insert:
   input:
     ancient(rules.create_tables.output),
-    dbsocket=ancient(path.socket),
+    dbsocket=ancient(config['dbsocket']),
     ts=path.asmsummary/"assembly_summary_{db}_{domain}.update_timestamp",
     datasrc=ancient(path.asmsummary/"assembly_summary_{db}_{domain}.txt")
   output:

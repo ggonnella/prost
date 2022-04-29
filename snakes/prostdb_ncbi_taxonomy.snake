@@ -16,7 +16,7 @@ rule load_all:
 
 rule create_table:
   input:
-    dbsocket=ancient(path.socket),
+    dbsocket=ancient(config['dbsocket']),
     schema=srcdir("../scripts/dbschema/ncbi_taxonomy_db.py"),
     dump=path.tax/"{table}.dmp"
   params:
@@ -29,7 +29,7 @@ rule create_table:
 rule load_data:
   input:
     tsv=path.tax/"{table}.dmp",
-    dbsocket=ancient(path.socket),
+    dbsocket=ancient(config['dbsocket']),
     done_create_tables=path.tables/"done.create_tables.ncbi_taxonomy.{table}"
   params:
     table="nt_{table}",
@@ -44,7 +44,7 @@ rule load_data:
 rule get_subtree:
   input:
     rules.create_table.output.done,
-    dbsocket=ancient(path.socket)
+    dbsocket=ancient(config['dbsocket'])
   params:
     root=config.get("root")
   script: "../scripts/ncbi_taxonomy_db_extract_subtree.py"
