@@ -8,13 +8,13 @@ dbname: prostdb
 dbuser: prostuser
 dbpass: prostpass
 dbhost: localhost
-dbport: 3306
 dbsocket: "{dataroot}/prost.db.sock"
 
 # the following are used only if the database setup and server management
 # is done using the dbsetup directory
 dbpath: "{dataroot}/database"
 dbrootpass: root
+dbport: 3306
 
 # the following is required only for the test suite
 testdbname: prosttestdb
