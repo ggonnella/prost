@@ -39,7 +39,8 @@ function start_server {
                 --datadir=$DATADIR \
                 --pid-file=$PID \
                 --log-error=$ERRLOG \
-                --socket=$DBSOCKET"
+                --socket=$DBSOCKET \
+                --port=$DBPORT"
     ( ($cmd 2>&1) > $TEMPFILE ) &
     if [ $? -ne 0 ]; then
       echo -e "ERROR\n"
