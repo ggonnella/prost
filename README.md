@@ -55,6 +55,8 @@ A number of features has been created in separate packages
            (based on ``attrtables``) with provenance tracking;
            the library is used for the computation of genome assembly
            attributes and to store the results in the ProstDB
+- findconfig: look for a configuration file in several possible positions
+              on the file system
 
 ## Code organization
 
