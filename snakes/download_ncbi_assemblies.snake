@@ -84,7 +84,8 @@ rule update_summaries:
 ext_for_filetype = {
     "refseq_genomic_fna": "genomic.fna.gz",
     "refseq_feature_table": "feature_table.txt.gz",
-    "refseq_genomic_gff": "genomic.gff.gz"
+    "refseq_genomic_gff": "genomic.gff.gz",
+    "refseq_genomic_cds": "cds_from_genomic.fna.gz"
   }
 
 rule update_all_sequences:
