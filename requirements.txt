@@ -14,3 +14,4 @@ snacli==1.1
 attrtables==1.1.1
 prenacs==1.0.2
 findconfig==1.2.1
+tqdm
