@@ -2,13 +2,13 @@
 
 USAGE="Prepare a database data directory and setup the database administration password.\n"
 USAGE+="\n"
-USAGE+="Usage:\n  $0 <data dir> <database password>\n"
+USAGE+="Usage:\n  $0 <data dir> <database password> [<database port>]\n"
 USAGE+="\n"
 USAGE+="Example:\n  $0 $HOME/prostdb_datadir mypassword\n"
 USAGE+="\n"
 USAGE+="Note:\n  The data directory must not exist yet.\n"
 
-if [ $# -ne 2 ]; then
+if [ $# -ne 2 -a $# -ne 3 ]; then
     echo -e $USAGE
     exit 1
 fi
@@ -27,6 +27,12 @@ PASSWORD=$2
 if [ -z "$PASSWORD" ]; then
     echo "${MSGPFX}Error: password is empty."
     exit 1
+fi
+
+DBPORT=$3
+
+if [ -z "$DBPORT" ]; then
+  DBPORT=3306
 fi
 
 INSTALL_ERRLOG=install_database.server.log
@@ -68,7 +74,8 @@ function start_server {
                 --datadir=$DATADIR \
                 --pid-file=$DATADIR/$INSTALL_PID \
                 --log-error=$DATADIR/$INSTALL_ERRLOG \
-                --socket=$DATADIR/$INSTALL_SOCKET"
+                --socket=$DATADIR/$INSTALL_SOCKET \
+                --port=$DBPORT"
     ( ($cmd 2>&1) > $TEMPFILE ) &
     if [ $? -ne 0 ]; then
       echo -e "ERROR\n"

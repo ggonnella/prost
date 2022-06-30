@@ -54,7 +54,7 @@ rule initialize:
     srcdir=srcdir(".")
   shell:
     """
-    {params.srcdir}/install_database.sh {config[dbpath]} {config[dbrootpass]}
+    {params.srcdir}/install_database.sh {config[dbpath]} {config[dbrootpass]} {config[dbport]}
     """
 
 rule create:
@@ -66,7 +66,7 @@ rule create:
     """
     {params.srcdir}/create_database.sh {config[dbpath]} {config[dbrootpass]} \
                          {config[dbname]} {config[dbuser]} \
-                         {config[dbpass]}
+                         {config[dbpass]} {config[dbport]}
     """
 
 rule create_test:

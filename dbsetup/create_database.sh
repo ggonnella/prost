@@ -2,7 +2,7 @@
 
 USAGE="Create a database and an user for interacting with that database.\n"
 USAGE+="\n"
-USAGE+="Usage:\n  $0 <datadir> <password> <dbname> <dbuser> <dbpass>\n"
+USAGE+="Usage:\n  $0 <datadir> <password> <dbname> <dbuser> <dbpass> [<dbport>]\n"
 USAGE+="\n"
 USAGE+="Example:\n  $0 $HOME/prostdb_datadir prostdb prostuser prostpass\n"
 USAGE+="\n"
@@ -10,7 +10,7 @@ USAGE+="Note:\n  The data directory must already been prepared\n"
 USAGE+="  A full privileges account '$USER' must exist, with password '<password>'.\n"
 USAGE+="  This can be done e.g. using ./install_database.sh\n"
 
-if [ $# -ne 5 ]; then
+if [ $# -ne 5 -a $# -ne 6 ]; then
     echo -e $USAGE
     exit 1
 fi
@@ -35,6 +35,11 @@ PASSWORD=$2
 DBNAME=$3
 DBUSER=$4
 DBPASS=$5
+DBPORT=$6
+
+if [ -z "$DBPORT" ]; then
+  DBPORT=3306
+fi
 
 CREATE_ERRLOG=create_database.server.log
 CREATE_SOCKET=create_database.server.socket
@@ -93,7 +98,8 @@ function start_server {
                 --datadir=$DATADIR \
                 --pid-file=$DATADIR/$CREATE_PID \
                 --log-error=$DATADIR/$CREATE_ERRLOG \
-                --socket=$DATADIR/$CREATE_SOCKET"
+                --socket=$DATADIR/$CREATE_SOCKET \
+                --port=$DBPORT"
     ( ($cmd 2>&1) > $TEMPFILE ) &
     if [ $? -ne 0 ]; then
       echo -e "ERROR\n"
