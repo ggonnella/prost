@@ -106,15 +106,15 @@ checkpoint compute_on_local_refseq_files:
     report=path.attrs/"{plugin}.{datasrc}.{domain}.report.yaml"
   params:
     globpattern=globpattern_value,
-    reason="new_data",
+    reason="new_entities",
     skip=skipopt_value,
     verbose=True,
     serial=False
   shell:
     """
-    prenacs-batch-compute {input.plugin} files {params.globpattern} \
+    prenacs-batch-compute {input.plugin} files "{params.globpattern}" \
         --idsproc {input.idsproc} --verbose --skip {params.skip} \
-        --out {log.out} --log {log.log} --reason new_data \
+        --out {log.out} --log {log.log} --reason new_entities \
         --report {output.report}
     """
 
