@@ -53,8 +53,11 @@ rule create_all_tables:
     dbsocket=ancient(config['dbsocket']),
   output:
     done=touch(path.flags/"done.create_tables.attrs")
-  script:
-    "prenacs-setup-database"
+  shell:
+    """
+    prenacs-setup-database {config[dbuser] {config[dbpass]} \
+        {config[dbname]} {config[dbsocket]}
+    """
 
 rule create_attributes:
   input:
@@ -66,8 +69,11 @@ rule create_attributes:
     drop=True
   output:
     done=touch(path.flags/"done.create_attributes")
-  script:
-    "prenacs-manage-attributes"
+  shell:
+    """
+    prenacs-manage-attributes {config[dbuser]} {config[dbpass]} \
+        {config[dbname]} {config[dbsocket]} {input.definitions} --drop --update
+    """
 
 def plugin_module_path(w):
   pfx = os.path.join(workflow.basedir, f"../plugins/{w.plugin}")
@@ -104,8 +110,13 @@ checkpoint compute_on_local_refseq_files:
     skip=skipopt_value,
     verbose=True,
     serial=False
-  script:
-    "prenacs-batch-compute"
+  shell:
+    """
+    prenacs-batch-compute {input.plugin} files {params.globpattern} \
+        --idsproc {input.idsproc} --verbose --skip {params.skip} \
+        --out {log.out} --log {log.log} --reason new_data \
+        --report {output.report}
+    """
 
 rule load_results:
   input:
@@ -116,8 +127,11 @@ rule load_results:
     done=rules.create_attributes.output.done
   output:
     touch(path.attrs/"done.load.{plugin}.{datasrc}.{domain}")
-  script:
-    "prenacs-load-results"
+  shell:
+    """
+    prenacs-load-results {config[dbuser]} {config[dbpass]} {config[dbname]} \
+        {config[dbsocket]} {input.results} {input.report} {input.plugin}
+    """
 
 rule process_loaded:
   input:
