@@ -28,13 +28,19 @@ Note that the MariaDB can be installed also as non-root user.
 ### MariaDB library setup
 
 If MariaDB is installed without using the package manager, the path of the
-shared library must be communicated to the Python connector.
+shared library must be communicated to the Python connector (which is installed
+by ``pip`` as one of the requirements).
 
 This can be done in one of the two following ways:
 - as root user:
-  editing /etc/ld.so.conf and running ldconfig afterwards
+  editing ``/etc/ld.so.conf`` and running ``ldconfig`` afterwards
 - as non root user:
-  adding the path of libmariadb.so to the `LD_LIBRARY_PATH`
+  adding the path to ``libmariadb.so`` to the ``LD_LIBRARY_PATH``; this is 
+  the ``lib`` subdirectory under the installation directory of mariadb:
+  ```
+  MARIADBDIR=... # write here the installation path of mariadb instead of ...
+  export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$MARIADBDIR/lib"
+  ```
 
 ## Configuration
 

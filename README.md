@@ -70,10 +70,10 @@ A number of features has been created in separate packages
 ## Documentation
 
 For further information, see the documentation under ``docs``:
-- ``installation.md`` describes how to install and setup Prost on a new system
-- ``prostdb_setup.md`` describes how to create the database, download the data
-  and load it into the database, after the setup is completed
-- ``prostdb_update.md`` describes how to automatically update the data from
+- ``setup.md`` describes how to install and setup Prost on a new system,
+  including how to create the database, download the data and load it into the
+  database
+- ``data_update.md`` describes how to automatically update the data from
   external sources
 - ``prost_plugins.md`` describes how to implement a plugin for attribute
   computation
