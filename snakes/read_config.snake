@@ -4,7 +4,7 @@ import sys
 import os
 from findconfig import findconfig
 
-configfile: findconfig("prost.config.yaml", exception=True)
+configfile: findconfig("prost.config.yaml", exception=True, verbose=True)
 
 def check_config_var(config, varname, helpmsg=None):
   if varname not in config or config[varname] is None:
