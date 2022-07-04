@@ -43,11 +43,6 @@ class NcbiAssemblySummary(Base):
   paired_asm_comp = Column(Enum("identical", "different"))
   ftp_path = Column(String(256))
   excluded_from_refseq = Column(String(256))
-  relation_to_type_material = Column(Enum(
-    "assembly from type material",
-    "assembly from synonym type material",
-    "assembly from pathotype material",
-    "assembly designated as reftype",
-    "assembly designated as neotype"))
+  relation_to_type_material = Column(String(256))
   __table_args__ = utf8_cs_args
 
