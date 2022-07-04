@@ -112,8 +112,10 @@ checkpoint compute_on_local_refseq_files:
     serial=False
   shell:
     """
+    if [ "{params.skip}" == "" ]; then SKIPOPT=""; \
+    else SKIPOPT="--skip {params.skip}"; fi
     prenacs-batch-compute {input.plugin} files "{params.globpattern}" \
-        --idsproc {input.idsproc} --verbose --skip {params.skip} \
+        --idsproc {input.idsproc} --verbose $SKIPOPT \
         --out {log.out} --log {log.log} --reason new_entities \
         --report {output.report}
     """
