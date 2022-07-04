@@ -12,6 +12,6 @@ docopt
 multiplug==1.1
 snacli==1.1
 attrtables==1.1.1
-prenacs==1.0.2
+prenacs==1.0.3
 tqdm
 findconfig==1.2.2
