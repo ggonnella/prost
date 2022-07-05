@@ -99,11 +99,10 @@ checkpoint compute_on_local_refseq_files:
     ts=path.asmsummary/"assembly_summary_refseq_{domain}.update_timestamp",
     idsproc=ancient(\
         srcdir("../plugins/refseq_accession_from_filename.py"))
-  log:
+  output:
+    report=str(path.attrs/"{plugin}.{datasrc}.{domain}.report.yaml"),
     out=str(path.attrs/"{plugin}.{datasrc}.{domain}.new_data.tsv"),
     log=str(path.attrs/"{plugin}.{datasrc}.{domain}.log")
-  output:
-    report=path.attrs/"{plugin}.{datasrc}.{domain}.report.yaml"
   params:
     globpattern=globpattern_value,
     reason="new_entities",
@@ -116,7 +115,7 @@ checkpoint compute_on_local_refseq_files:
     else SKIPOPT="--skip {params.skip}"; fi
     prenacs-batch-compute {input.plugin} files "{params.globpattern}" \
         --idsproc {input.idsproc} --verbose $SKIPOPT \
-        --out {log.out} --log {log.log} --reason new_entities \
+        --out {output.out} --log {output.log} --reason new_entities \
         --report {output.report}
     """
 
