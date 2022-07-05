@@ -44,7 +44,7 @@ include: "common.snake"
 rule all:
   input:
     expand(str(path.attrs/"done.compute_and_load.{plugin_datasrc}.{domain}"),
-        plugin_datasrc=["fas_stats.refseq_genomic_fna",
+        plugin_datasrc=["fas_stats_posix.refseq_genomic_fna",
                         "refseq_ftypes.refseq_genomic_gff"],
         domain=domains)
 
