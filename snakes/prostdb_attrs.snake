@@ -55,7 +55,7 @@ rule create_all_tables:
     done=touch(path.flags/"done.create_tables.attrs")
   shell:
     """
-    prenacs-setup-database {config[dbuser] {config[dbpass]} \
+    prenacs-setup-database {config[dbuser]} {config[dbpass]} \
         {config[dbname]} {config[dbsocket]}
     """
 
