@@ -82,7 +82,7 @@ def plugin_module_path(w):
 
 def skipopt_value(w):
   skipfile = path.attrs/f"{w.plugin}.{w.datasrc}.{w.domain}.tsv"
-  return skipfile if os.path.exists(skipfile) else None
+  return skipfile if os.path.exists(skipfile) else ""
 
 ext_for_datasrc = {
     "refseq_genomic_fna": "genomic.fna.gz",
