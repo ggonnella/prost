@@ -13,7 +13,8 @@ sysuser = getpass.getuser()
 #
 replace_dead_socket=\
       f"if test -S {config['dbsocket']}; then "+\
-      f"  if ! mysql -u {sysuser} --password={config['dbrootpass']} "+\
+      f"  if ! mysql -u {sysuser} --port={config['dbport']} "+\
+      f"             --password={config['dbrootpass']} "+\
       f"             -S {config['dbsocket']} -e';'; then "+\
       f"    rm {config['dbsocket']}; "+\
       f"    echo 'restarting DB server...';"+\
